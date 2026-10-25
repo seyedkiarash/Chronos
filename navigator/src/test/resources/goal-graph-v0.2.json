@@ -1,0 +1,1115 @@
+{
+  "schema_version": "0.2",
+  "meta": {
+    "title": "Sample goal graph (made up, for the tests)",
+    "created": "2026-09-30",
+    "timezone": "UTC",
+    "calendar_note": "sample text",
+    "horizon_end": "2032-09-30",
+    "updated": "2026-10-01",
+    "changelog": [
+      "sample"
+    ]
+  },
+  "node_types": {
+    "STREAM": "open-ended recurring activity with weekly floor/cap (maps to a Chronos OPEN goal)",
+    "SKILL": "continuous level 0-10 with target; effort = hours per level point",
+    "TASK": "bounded work with lognormal effort (maps to a Chronos CLOSED goal)",
+    "MILESTONE": "checkpoint reached when its dependencies are satisfied or a condition holds",
+    "GATE": "outcome decided outside the user (admission, offer, consent); has Beta success prior",
+    "DECISION": "choice among alternatives (OR); resolved by the user at decide_by",
+    "TERMINAL": "final goal",
+    "EXTERNAL_TRACK": "container whose children are assigned by an outside authority (advisor); system may schedule but not restructure"
+  },
+  "policies": {
+    "consent": {
+      "rule": "sample text",
+      "applies_to": [
+        "G_PARTNER",
+        "G_NETWORK",
+        "A_PITCH"
+      ]
+    },
+    "rolling_wave": {
+      "fine_until_weeks": 6,
+      "medium_until_months": 6,
+      "coarse_beyond": true,
+      "expand_rule": "sample text"
+    },
+    "objective": {
+      "primary": "sample text",
+      "tie_break": "sample text",
+      "risk_tolerance": 5
+    },
+    "hard_constraints": {
+      "sleep": {
+        "from": "22:30",
+        "to": "06:00",
+        "min_hours": 7.5
+      },
+      "courses_floor_h_per_week": 8,
+      "workout": {
+        "days": [
+          "Sat",
+          "Wed"
+        ],
+        "minutes": 90
+      }
+    },
+    "llm_triggers": [
+      {
+        "id": "prob_drop",
+        "when": "P(milestone) < 0.60",
+        "reset_when": "P > 0.70",
+        "note": "sample text"
+      },
+      {
+        "id": "prob_jump",
+        "when": "dP > +0.15 within 7 days"
+      },
+      {
+        "id": "manual_change",
+        "when": "user edits goals, constraints or deadlines"
+      },
+      {
+        "id": "expand_due",
+        "when": "now >= node.expand_at"
+      },
+      {
+        "id": "external_window",
+        "when": "a GATE's application window opens or its known deadline changes"
+      },
+      {
+        "id": "monthly_review",
+        "when": "first Wednesday of each month"
+      }
+    ],
+    "authority": {
+      "levels": {
+        "advisor": 3,
+        "user": 2,
+        "system_suggested": 1
+      },
+      "rules": [
+        "sample text",
+        "sample text",
+        "sample text"
+      ]
+    }
+  },
+  "regimes": {
+    "capacity_goal_hours_per_day": {
+      "IDEAL": 8,
+      "BUSY": 5,
+      "STRESS": 0
+    },
+    "calendar": [
+      {
+        "id": "TRANSITION",
+        "from": "2026-09-23",
+        "to": "2026-09-30",
+        "mix": null,
+        "data_weight": 0.3,
+        "note": "sample"
+      },
+      {
+        "id": "SPRINT_CONVEX",
+        "overlay_on": "EARLY",
+        "from": "2026-10-01",
+        "to": "2026-10-12",
+        "note": "sample",
+        "planned_h_per_day": {
+          "T_CONVEX": 5.5,
+          "STR_COURSES": 1.0,
+          "SK_EN": 0.5,
+          "SK_LANG2": 0.35
+        }
+      },
+      {
+        "id": "EARLY",
+        "from": "2026-10-01",
+        "to": "2026-11-10",
+        "mix": {
+          "IDEAL": 0.667,
+          "BUSY": 0.333,
+          "STRESS": 0
+        }
+      },
+      {
+        "id": "MIDTERM",
+        "from": "2026-11-11",
+        "to": "2026-12-18",
+        "mix": {
+          "IDEAL": 0,
+          "BUSY": 0.5,
+          "STRESS": 0.5
+        },
+        "jalali": "sample text"
+      },
+      {
+        "id": "FINALS",
+        "from": "2026-12-19",
+        "to": "2027-01-20",
+        "mix": {
+          "IDEAL": 0.333,
+          "BUSY": 0.333,
+          "STRESS": 0.333
+        },
+        "assumption": true,
+        "ask_when": "2026-11-20"
+      },
+      {
+        "id": "BREAK",
+        "from": "2027-01-21",
+        "to": "2027-02-10",
+        "mix": {
+          "IDEAL": 1,
+          "BUSY": 0,
+          "STRESS": 0
+        },
+        "assumption": true,
+        "ask_when": "2026-12-01"
+      }
+    ]
+  },
+  "user_state": {
+    "adherence": {
+      "dist": "beta",
+      "a": 16,
+      "b": 4,
+      "mean": 0.8,
+      "source": "user override; week-1 logs down-weighted"
+    },
+    "estimation_bias": {
+      "default": {
+        "dist": "lognormal",
+        "median": 1.3,
+        "sigma": 0.35,
+        "note": "sample text"
+      },
+      "watching convex videos": {
+        "dist": "lognormal",
+        "median": 2.47,
+        "sigma": 0.35,
+        "source": "5 logged sessions"
+      }
+    },
+    "energy_profile": {
+      "peak": [
+        "09:00-11:00",
+        "17:00-18:00"
+      ],
+      "low": [
+        "06:00-08:00",
+        "15:00",
+        "18:00-19:30 after exercise"
+      ],
+      "source": "64 check-ins, 6 days"
+    },
+    "deep_block_minutes": {
+      "typical": [
+        90,
+        120
+      ],
+      "max_stated_hours": [
+        2,
+        3
+      ]
+    },
+    "skills_now": {
+      "python": 4,
+      "pytorch_dl": 3,
+      "classical_dsp": 6,
+      "optimization": 6,
+      "prob_linalg": 6,
+      "music_theory": 1,
+      "music_production": 1,
+      "performance": 2,
+      "scientific_english": 5,
+      "korean": 3
+    },
+    "resources": {
+      "gpu": "sample text",
+      "budget": "sample text"
+    },
+    "citizenship": [
+      "XX"
+    ],
+    "exit_constraints": null,
+    "path_prior_weights": {
+      "OPT_A": 0.35,
+      "OPT_B": 0.3,
+      "OPT_C": 0.1,
+      "OPT_D": 0.1,
+      "OPT_E": 0.05,
+      "OPT_F": 0.07,
+      "OPT_G": 0.03
+    },
+    "subfield_rank": [
+      "sample text",
+      "sample text",
+      "sample text",
+      "sample text",
+      "sample text",
+      "sample text"
+    ]
+  },
+  "nodes": [
+    {
+      "id": "ADV_TRACK",
+      "type": "EXTERNAL_TRACK",
+      "owner": "advisor",
+      "title": "Supervisor-led research track",
+      "status": "active",
+      "phase": "P1",
+      "children": [
+        "T_CONVEX"
+      ],
+      "note": "sample text",
+      "ask_when": "sample text",
+      "contributes_to": [
+        {
+          "node": "T_REPORT",
+          "coef": 0.6
+        },
+        {
+          "node": "T_CV",
+          "coef": 0.5,
+          "why": "sample text"
+        },
+        {
+          "node": "T_PAPER1",
+          "coef": 0.6
+        }
+      ],
+      "standalone_value": 0.95
+    },
+    {
+      "id": "STR_COURSES",
+      "type": "STREAM",
+      "title": "University coursework",
+      "phase": "P0",
+      "granularity": "fine",
+      "weekly": {
+        "floor_h": 8,
+        "max_h_per_day": 3
+      },
+      "hard": true,
+      "contributes_to": [
+        {
+          "node": "MS_GRADES",
+          "coef": 1.0
+        }
+      ],
+      "chronos": {
+        "activity": [
+          "reading gsp",
+          "reading cs"
+        ],
+        "needs_high_focus": true
+      },
+      "owner": "user"
+    },
+    {
+      "id": "MS_GRADES",
+      "type": "MILESTONE",
+      "title": "Keep grades above the target",
+      "phase": "P0",
+      "window": {
+        "deadline": "2028-06-30"
+      },
+      "standalone_value": 0.9,
+      "contributes_to": [
+        {
+          "node": "G_INTERN",
+          "coef": 0.2
+        },
+        {
+          "node": "G_ADMIT",
+          "coef": 0.25
+        }
+      ],
+      "owner": "user"
+    },
+    {
+      "id": "SK_EN",
+      "type": "SKILL",
+      "title": "English (academic)",
+      "phase": "P0",
+      "level": {
+        "from": 5,
+        "to": 8
+      },
+      "effort": {
+        "hours_per_point_p50": 60,
+        "hours_per_point_p90": 110
+      },
+      "weekly": {
+        "floor_h": 9,
+        "max_h_per_day": 2.5
+      },
+      "dual_credit_from": [
+        {
+          "node": "T_SURVEY",
+          "coef": 0.5
+        },
+        {
+          "node": "T_REPORT",
+          "coef": 0.7
+        }
+      ],
+      "chronos": {
+        "activity": "studying English ",
+        "needs_high_focus": false
+      },
+      "standalone_value": 0.9,
+      "owner": "user",
+      "priority_note": "sample text",
+      "focus_split": {
+        "scientific_writing": 0.4,
+        "speaking": 0.3,
+        "test_prep": 0.3
+      }
+    },
+    {
+      "id": "SK_EN_TEST",
+      "type": "MILESTONE",
+      "title": "English test score",
+      "phase": "P3",
+      "depends_on": [
+        "SK_EN"
+      ],
+      "window": {
+        "earliest": "2027-05-01",
+        "deadline": "2027-09-30"
+      },
+      "condition": null,
+      "owner": "user",
+      "note": "sample text"
+    },
+    {
+      "id": "SK_LANG2",
+      "type": "SKILL",
+      "title": "Second language",
+      "phase": "P0",
+      "level": {
+        "from": 3,
+        "to": 4
+      },
+      "effort": {
+        "hours_per_point_p50": 90,
+        "hours_per_point_p90": 160
+      },
+      "weekly": {
+        "floor_h": 2.5,
+        "max_h_per_day": 0.5
+      },
+      "chronos": {
+        "activity": "Studying Korean ",
+        "needs_high_focus": false
+      },
+      "standalone_value": 0.6,
+      "owner": "user",
+      "mode": "maintenance",
+      "ramp_rule": "sample text",
+      "why": "sample text"
+    },
+    {
+      "id": "MS_LANG2_TEST",
+      "type": "MILESTONE",
+      "title": "Second-language test",
+      "phase": "P3",
+      "depends_on": [
+        "SK_LANG2"
+      ],
+      "window": {
+        "deadline": "2027-12-31"
+      },
+      "note": "sample text",
+      "standalone_value": 0.5,
+      "owner": "user",
+      "soft": true
+    },
+    {
+      "id": "STR_PLAN",
+      "type": "STREAM",
+      "title": "Planning",
+      "phase": "P0",
+      "weekly": {
+        "floor_h": 5,
+        "max_h_per_day": 1.5
+      },
+      "chronos": {
+        "activity": "planning"
+      },
+      "standalone_value": 0.7,
+      "owner": "user"
+    },
+    {
+      "id": "T_CONVEX",
+      "type": "TASK",
+      "title": "Course videos (assigned)",
+      "phase": "P1",
+      "granularity": "fine",
+      "effort": {
+        "per_unit_h_median_observed": 2.47,
+        "per_unit_h_median_prior": 2.0,
+        "sigma": 0.4,
+        "note": "sample text"
+      },
+      "window": {
+        "deadline": "2026-10-12",
+        "jalali": "sample text",
+        "hard": true
+      },
+      "contributes_to": [
+        {
+          "node": "T_EXT",
+          "coef": 0.3
+        }
+      ],
+      "chronos": {
+        "activity": "watching convex videos",
+        "needs_high_focus": true
+      },
+      "standalone_value": 0.8,
+      "owner": "advisor",
+      "parent": "ADV_TRACK",
+      "units": {
+        "total": 30,
+        "done": 9,
+        "remaining": 21,
+        "unit": "video"
+      },
+      "timebox_rule": {
+        "per_video_max_min": 120,
+        "parking_lot": "sample text"
+      },
+      "checkpoint": {
+        "date": "2026-10-05",
+        "min_units_done": 7,
+        "on_fail": "sample text"
+      },
+      "forecast_P_by_deadline": {
+        "planned_h_per_day": {
+          "4": {
+            "2.47": 0.2,
+            "2.0": 0.4
+          },
+          "5": {
+            "2.47": 0.41,
+            "2.0": 0.63
+          },
+          "5.5": {
+            "2.47": 0.5,
+            "2.0": 0.72
+          },
+          "6": {
+            "2.47": 0.6,
+            "2.0": 0.8
+          }
+        },
+        "chosen_h_per_day": 5.5
+      }
+    },
+    {
+      "id": "SK_TORCH",
+      "type": "SKILL",
+      "title": "Machine learning skills",
+      "phase": "P1",
+      "level": {
+        "from": 3,
+        "to": 6
+      },
+      "checkpoint": {
+        "level": 5,
+        "by": "2026-11-24",
+        "total_h_p50": 45,
+        "total_h_p90": 85
+      },
+      "effort": {
+        "total_h_p50": 70,
+        "total_h_p90": 130
+      },
+      "window": {
+        "deadline": "2027-01-10"
+      },
+      "chronos": {
+        "activity": "pytorch audio",
+        "needs_high_focus": true,
+        "windows": [
+          "08:30-12:30",
+          "16:30-19:00"
+        ],
+        "shortest": 60,
+        "longest": 120
+      },
+      "standalone_value": 0.95,
+      "owner": "system_suggested",
+      "role": "support",
+      "paused_during": [
+        "SPRINT_CONVEX"
+      ],
+      "contributes_to": [
+        {
+          "node": "ADV_TRACK",
+          "coef": 0.4
+        },
+        {
+          "node": "T_REPRO",
+          "coef": 1.0
+        }
+      ]
+    },
+    {
+      "id": "T_SURVEY",
+      "type": "TASK",
+      "title": "Survey key papers",
+      "phase": "P1",
+      "effort": {
+        "total_h_p50": 25,
+        "total_h_p90": 45
+      },
+      "window": {
+        "earliest": "2026-10-14",
+        "deadline": "2026-11-10"
+      },
+      "chronos": {
+        "activity": "svs papers",
+        "needs_high_focus": true
+      },
+      "standalone_value": 0.7,
+      "owner": "system_suggested",
+      "role": "support",
+      "paused_during": [
+        "SPRINT_CONVEX"
+      ]
+    },
+    {
+      "id": "T_LABLIST",
+      "type": "TASK",
+      "title": "Shortlist labs",
+      "phase": "P1",
+      "effort": {
+        "total_h_p50": 8,
+        "total_h_p90": 14
+      },
+      "window": {
+        "earliest": "2026-10-21",
+        "deadline": "2026-11-15"
+      },
+      "standalone_value": 0.6,
+      "owner": "system_suggested",
+      "role": "support",
+      "paused_during": [
+        "SPRINT_CONVEX"
+      ]
+    },
+    {
+      "id": "T_REPRO",
+      "type": "TASK",
+      "title": "Reproduce a published model",
+      "phase": "P2",
+      "granularity": "medium",
+      "expand_at": "2026-11-01",
+      "depends_on": [
+        "SK_TORCH",
+        "T_SURVEY"
+      ],
+      "start_rule": "sample text",
+      "effort": {
+        "total_h_p50": 50,
+        "total_h_p90": 100
+      },
+      "window": {
+        "deadline": "2027-01-10"
+      },
+      "resources": [
+        "sample text"
+      ],
+      "standalone_value": 0.8,
+      "owner": "system_suggested",
+      "role": "support",
+      "paused_during": [
+        "SPRINT_CONVEX"
+      ],
+      "status": "proposed"
+    },
+    {
+      "id": "T_EXT",
+      "type": "TASK",
+      "title": "Extend the reproduction",
+      "phase": "P2",
+      "granularity": "coarse",
+      "expand_at": "2026-12-01",
+      "depends_on": [
+        "T_REPRO"
+      ],
+      "effort": {
+        "total_h_p50": 60,
+        "total_h_p90": 130
+      },
+      "window": {
+        "deadline": "2027-02-05"
+      },
+      "soft": true,
+      "note": "sample text",
+      "standalone_value": 0.8,
+      "owner": "system_suggested",
+      "role": "support",
+      "paused_during": [
+        "SPRINT_CONVEX"
+      ]
+    },
+    {
+      "id": "T_REPORT",
+      "type": "TASK",
+      "title": "Technical report and demo",
+      "phase": "P2",
+      "depends_on": [],
+      "soft_depends_on": [
+        "T_EXT"
+      ],
+      "effort": {
+        "total_h_p50": 20,
+        "total_h_p90": 35
+      },
+      "window": {
+        "deadline": "2027-02-05"
+      },
+      "standalone_value": 0.7,
+      "owner": "system_suggested",
+      "any_of": [
+        [
+          "ADV_TRACK"
+        ],
+        [
+          "T_REPRO"
+        ]
+      ]
+    },
+    {
+      "id": "T_CV",
+      "type": "TASK",
+      "title": "CV and statement",
+      "phase": "P2",
+      "depends_on": [
+        "T_REPORT"
+      ],
+      "soft_depends_on": [
+        "ADV_TRACK"
+      ],
+      "effort": {
+        "total_h_p50": 10,
+        "total_h_p90": 18
+      },
+      "window": {
+        "deadline": "2027-02-05"
+      },
+      "owner": "system_suggested"
+    },
+    {
+      "id": "T_OUTREACH",
+      "type": "TASK",
+      "title": "Contact labs",
+      "phase": "P2",
+      "depends_on": [
+        "T_LABLIST",
+        "T_CV"
+      ],
+      "effort": {
+        "total_h_p50": 12,
+        "total_h_p90": 20
+      },
+      "window": {
+        "earliest": "2026-12-20",
+        "deadline": "2027-02-15"
+      },
+      "consent": {
+        "requires_other_party": true,
+        "channel": "professional channel"
+      },
+      "owner": "system_suggested"
+    },
+    {
+      "id": "T_APPLY_PROG",
+      "type": "TASK",
+      "title": "Apply to summer programmes",
+      "phase": "P2",
+      "depends_on": [
+        "T_CV"
+      ],
+      "effort": {
+        "total_h_p50": 6,
+        "total_h_p90": 12
+      },
+      "window": {
+        "deadline": "2027-02-15",
+        "note": "sample text"
+      },
+      "owner": "system_suggested"
+    },
+    {
+      "id": "G_INTERN",
+      "type": "GATE",
+      "title": "Research internship offer",
+      "phase": "P2",
+      "any_of": [
+        [
+          "T_OUTREACH"
+        ],
+        [
+          "T_APPLY_PROG"
+        ]
+      ],
+      "window": {
+        "deadline": "2027-04-30"
+      },
+      "success_prior": {
+        "beta": [
+          3,
+          5
+        ],
+        "source": "placeholder; LLM reference-class search to refine"
+      },
+      "standalone_value": 0.9,
+      "owner": "external"
+    },
+    {
+      "id": "G_VISA",
+      "type": "GATE",
+      "title": "Visa for the internship",
+      "phase": "P3",
+      "depends_on": [
+        "G_INTERN"
+      ],
+      "success_prior": {
+        "beta": [
+          8,
+          2
+        ],
+        "source": "placeholder; verify for your passport"
+      },
+      "owner": "external"
+    },
+    {
+      "id": "I_INTERN",
+      "type": "MILESTONE",
+      "title": "Internship",
+      "phase": "P3",
+      "depends_on": [
+        "G_INTERN",
+        "G_VISA"
+      ],
+      "window": {
+        "earliest": "2027-06-15",
+        "deadline": "2027-08-31"
+      },
+      "standalone_value": 0.9,
+      "owner": "user"
+    },
+    {
+      "id": "T_PAPER1",
+      "type": "TASK",
+      "title": "First paper submission",
+      "phase": "P3",
+      "granularity": "coarse",
+      "expand_at": "2027-03-01",
+      "any_of": [
+        [
+          "ADV_TRACK"
+        ],
+        [
+          "T_EXT"
+        ],
+        [
+          "I_INTERN"
+        ]
+      ],
+      "effort": {
+        "total_h_p50": 80,
+        "total_h_p90": 160
+      },
+      "window": {
+        "deadline": "2027-10-31"
+      },
+      "owner": "system_suggested"
+    },
+    {
+      "id": "G_PAPER1",
+      "type": "GATE",
+      "title": "Paper accepted",
+      "phase": "P3",
+      "depends_on": [
+        "T_PAPER1"
+      ],
+      "success_prior": {
+        "beta": [
+          3,
+          5
+        ],
+        "source": "placeholder"
+      },
+      "owner": "external"
+    },
+    {
+      "id": "D_GRAD",
+      "type": "DECISION",
+      "title": "Graduate study options",
+      "phase": "P3",
+      "decide_by": "2027-09-15",
+      "options": [
+        "OPT_A",
+        "OPT_B",
+        "OPT_C",
+        "OPT_D",
+        "OPT_E",
+        "OPT_F",
+        "OPT_G",
+        "OPT_H"
+      ],
+      "prior_weights_from": "user_state.path_prior_weights",
+      "owner": "user"
+    },
+    {
+      "id": "T_GRAD_APPS",
+      "type": "TASK",
+      "title": "Graduate applications",
+      "phase": "P3",
+      "granularity": "coarse",
+      "expand_at": "2027-06-01",
+      "depends_on": [
+        "D_GRAD"
+      ],
+      "soft_depends_on": [
+        "G_INTERN",
+        "T_PAPER1",
+        "SK_EN_TEST",
+        "MS_GRADES"
+      ],
+      "effort": {
+        "total_h_p50": 60,
+        "total_h_p90": 110
+      },
+      "window": {
+        "earliest": "2027-09-01",
+        "deadline": "2028-01-31"
+      },
+      "owner": "user"
+    },
+    {
+      "id": "G_ADMIT",
+      "type": "GATE",
+      "title": "Funded admission",
+      "phase": "P3",
+      "depends_on": [
+        "T_GRAD_APPS"
+      ],
+      "success_prior": {
+        "beta": [
+          4,
+          4
+        ],
+        "source": "placeholder; refined per program"
+      },
+      "owner": "external"
+    },
+    {
+      "id": "MS_BSC",
+      "type": "MILESTONE",
+      "title": "Bachelor graduation",
+      "phase": "P4",
+      "depends_on": [
+        "STR_COURSES"
+      ],
+      "window": {
+        "deadline": "2028-07-15"
+      },
+      "owner": "user"
+    },
+    {
+      "id": "P_GRAD",
+      "type": "MILESTONE",
+      "title": "Graduate research",
+      "phase": "P4",
+      "granularity": "coarse",
+      "expand_at": "2028-03-01",
+      "depends_on": [
+        "G_ADMIT",
+        "MS_BSC"
+      ],
+      "window": {
+        "earliest": "2028-09-01",
+        "deadline": "2030-08-31"
+      },
+      "standalone_value": 0.9,
+      "owner": "user"
+    },
+    {
+      "id": "G_INDUSTRY",
+      "type": "GATE",
+      "title": "Industry link",
+      "phase": "P4",
+      "granularity": "coarse",
+      "depends_on": [
+        "P_GRAD"
+      ],
+      "soft_depends_on": [
+        "SK_LANG2"
+      ],
+      "success_prior": {
+        "beta": [
+          2,
+          4
+        ],
+        "source": "placeholder"
+      },
+      "owner": "external"
+    },
+    {
+      "id": "T_PRODUCT",
+      "type": "TASK",
+      "title": "Build a product prototype",
+      "phase": "P5",
+      "granularity": "coarse",
+      "expand_at": "2029-09-01",
+      "depends_on": [
+        "P_GRAD"
+      ],
+      "soft_depends_on": [
+        "G_INDUSTRY"
+      ],
+      "standalone_value": 0.8,
+      "owner": "system_suggested"
+    },
+    {
+      "id": "G_PARTNER",
+      "type": "GATE",
+      "title": "Partnership agreed",
+      "phase": "P5",
+      "depends_on": [
+        "T_PRODUCT"
+      ],
+      "soft_depends_on": [
+        "G_INDUSTRY"
+      ],
+      "consent": {
+        "requires_other_party": true,
+        "channel": "professional channel"
+      },
+      "success_prior": {
+        "beta": [
+          1,
+          19
+        ],
+        "source": "no reference class; deliberately wide"
+      },
+      "owner": "external"
+    },
+    {
+      "id": "G_NETWORK",
+      "type": "GATE",
+      "title": "Contact develops",
+      "phase": "P5",
+      "depends_on": [
+        "G_PARTNER"
+      ],
+      "consent": {
+        "requires_other_party": true,
+        "channel": "none — not plannable; no sub-nodes allowed"
+      },
+      "success_prior": {
+        "beta": [
+          1,
+          9
+        ],
+        "source": "exogenous"
+      },
+      "owner": "external"
+    },
+    {
+      "id": "A_PITCH",
+      "type": "TERMINAL",
+      "title": "Pitch the partnership",
+      "phase": "P5",
+      "depends_on": [
+        "G_NETWORK"
+      ],
+      "consent": {
+        "requires_other_party": true,
+        "channel": "professional channel"
+      },
+      "window": {
+        "deadline": "2032-09-30"
+      },
+      "owner": "user"
+    }
+  ],
+  "forecast": {
+    "method": "sample text",
+    "chain_planned_h_per_week": {
+      "EARLY": 16.5,
+      "MIDTERM": 9,
+      "FINALS": 16,
+      "BREAK": 35
+    },
+    "results": {
+      "baseline (convex 15, torch 10 h/wk, full-size repro)": {
+        "torch_L5_by_Nov10": 0.33,
+        "package_by_Feb15": 0.54,
+        "package_plus_ext": 0.28
+      },
+      "chosen (convex 10, torch 13.5 h/wk, compact DDSP repro)": {
+        "torch_L5_by_Nov10": 0.51,
+        "package_by_Feb15": 0.69,
+        "package_plus_ext": 0.4
+      },
+      "convex original deadline 2026-10-12, 21 videos": {
+        "P_at_30h_per_week": 0.29
+      },
+      "convex 21 videos by 2026-10-12, 5.5 h/day": {
+        "if_2.0h_per_video": 0.72,
+        "if_2.47h_per_video": 0.5
+      }
+    },
+    "status": "proposed"
+  },
+  "plan_30d": {
+    "periods": [
+      {
+        "from": "2026-10-01",
+        "to": "2026-10-12",
+        "regime": "SPRINT_CONVEX",
+        "planned_h_per_day": {
+          "T_CONVEX": 5.5,
+          "STR_COURSES": 1.0,
+          "SK_EN": 0.5,
+          "SK_LANG2": 0.35
+        },
+        "placement": [
+          "sample text",
+          "sample text",
+          "sample text"
+        ]
+      },
+      {
+        "from": "2026-10-13",
+        "to": "2026-11-10",
+        "regime": "EARLY",
+        "planned_h_per_week": {
+          "STR_COURSES": 8,
+          "ADV_TRACK": 12,
+          "SK_TORCH": 10,
+          "SK_EN": 9,
+          "STR_PLAN": 4,
+          "T_SURVEY": 3,
+          "SK_LANG2": 2.5,
+          "T_LABLIST": 1
+        },
+        "note": "sample text"
+      }
+    ],
+    "expected_realized_factor": 0.8,
+    "week_1_factor": 0.75
+  }
+}

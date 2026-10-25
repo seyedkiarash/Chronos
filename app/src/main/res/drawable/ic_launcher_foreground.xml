@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A rising curve on three axes: capacity over the day, drawn in the same
+     oblique projection as a 3-D plot. Everything sits inside the 66dp safe
+     zone of the adaptive icon (the group scales a 100x100 drawing to 58dp). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.58"
+        android:scaleY="0.58"
+        android:translateX="25"
+        android:translateY="25">
+
+        <!-- ribbon between the front curve and its depth-shifted twin -->
+        <path
+            android:fillColor="#5E8C6A"
+            android:fillAlpha="0.55"
+            android:pathData="M20,80 C36,80 40,52 54,48 C66,44 72,34 82,26
+                              L92,19 C82,27 76,37 64,41 C50,45 46,73 30,73 Z" />
+
+        <!-- back curve (further away, dimmer) -->
+        <path
+            android:strokeColor="#E0B44A"
+            android:strokeAlpha="0.45"
+            android:strokeWidth="3"
+            android:strokeLineCap="round"
+            android:pathData="M30,73 C46,73 50,45 64,41 C76,37 82,27 92,19" />
+
+        <!-- axes: vertical, right (time), and into the depth -->
+        <path
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="3.5"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:pathData="M14,14 L14,84 L80,90 M14,84 L54,58" />
+
+        <!-- front curve -->
+        <path
+            android:strokeColor="#E0B44A"
+            android:strokeWidth="5"
+            android:strokeLineCap="round"
+            android:pathData="M20,80 C36,80 40,52 54,48 C66,44 72,34 82,26" />
+
+        <!-- sample points on the front curve -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M54,48 m-3.2,0 a3.2,3.2 0 1,0 6.4,0 a3.2,3.2 0 1,0 -6.4,0
+                              M82,26 m-3.2,0 a3.2,3.2 0 1,0 6.4,0 a3.2,3.2 0 1,0 -6.4,0
+                              M20,80 m-3.2,0 a3.2,3.2 0 1,0 6.4,0 a3.2,3.2 0 1,0 -6.4,0" />
+    </group>
+</vector>
