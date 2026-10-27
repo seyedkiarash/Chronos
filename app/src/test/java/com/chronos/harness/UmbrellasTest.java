@@ -86,4 +86,30 @@ public class UmbrellasTest {
             && id.equals(i.subjectId())));
         assertEquals(ActivityKind.GOAL, a.kind);
     }
+
+    /** Goal work moved to another goal (27 Oct 2026): its own settings stay, its target is entered again. */
+    @Test
+    public void movedWorkKeepsItsOwnAndStartsItsTargetAgain() {
+        Config cfg = ParityHarness.build(DAY);
+        Umbrellas.apply(cfg, new HashMap<>());
+        Goal lit = cfg.goal("lit");
+        lit.tier = 0; lit.rank = 0;
+        Activity papers = cfg.activity("papers");
+        int windows = papers.windows.size();
+        double q = papers.q;
+
+        assertFalse("to the goal it already serves: nothing", Umbrellas.move(lit, lit.groupName));
+        assertTrue(Umbrellas.move(lit, "Coursework"));
+        assertEquals("Coursework", lit.groupName);
+        assertEquals("the same target, so its links and log stay", "lit", papers.goalId);
+        assertNull(lit.totalUnits); assertNull(lit.deadline); assertNull(lit.hoursPerUnit); assertNull(lit.maxPerDayH);
+        assertNull(lit.unit); assertNull(lit.tier); assertNull(lit.rank);
+        assertEquals(0.0, lit.doneUnits, 0.0);
+        assertTrue(lit.note.contains("Moved from"));
+        assertEquals("the activity keeps its hours", windows, papers.windows.size());
+        assertEquals("and what was learned about it", q, papers.q, 0.0);
+        assertTrue("the planner waits for the new target", Readiness.check(cfg, DAY).stream().anyMatch(i ->
+            i.severity() == Readiness.Severity.BLOCKING && "lit".equals(i.subjectId()) && i.what().contains("hours per unit is not set")));
+        assertEquals(2, Umbrellas.groups(cfg).get("Coursework").size());
+    }
 }

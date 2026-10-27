@@ -1,5 +1,12 @@
 package com.chronos.ui
 
+import com.chronos.ui.common.*
+import com.chronos.ui.setup.*
+import com.chronos.ui.horizon.*
+import com.chronos.ui.day.*
+import com.chronos.ui.log.*
+import com.chronos.ui.navigator.*
+
 import android.Manifest
 import android.app.Application
 import android.content.pm.PackageManager
@@ -17,7 +24,6 @@ import com.chronos.calendar.CalendarSync
 import com.chronos.calendar.CalendarWriter
 import com.chronos.data.ChronosRepository
 import com.chronos.data.DatabaseWiring
-import com.chronos.engine.Ahp
 import com.chronos.engine.Calibrator
 import com.chronos.engine.DaySequencer
 import com.chronos.engine.Feasibility
@@ -39,7 +45,7 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
 
     companion object {
         /** Raised when the way days are arranged changes, so stored plans are solved again. */
-        private const val ENGINE_VERSION = 6
+        private const val ENGINE_VERSION = 8
         /** How far ahead the Horizon screen looks for things that did not fit. */
         private const val UPCOMING_DAYS = 7
     }
@@ -456,6 +462,8 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
     /** Every configuration change goes through here. */
     fun edit(block: (Config) -> Unit) {
         block(config)
+        // Weights follow the priority levels; a new target is placed in one (26 Oct 2026).
+        com.chronos.engine.Priorities.settle(config, com.chronos.data.ChronosRepository.logicalToday())
         revision++
         dayCache.clear()
         requested.clear()
@@ -662,22 +670,33 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
     /** Targets in play: the ones the plan still works on. */
     fun targetsInPlay(today: LocalDate = LocalDate.now()) = config.goals.filter { outOfPlay(it, today) == null }
 
-    /** Weights among the targets in play; the rest keep the weight they had. */
-    fun weightsPreview(): Ahp.Weights = Ahp.of(config.goals.filter { outOfPlay(it) == null }.map { it.id }, comparisons)
-
     /** A goal just named: its first activity's sheet opens next (Setup reads and clears this). */
     var pendingNewActivity by mutableStateOf<String?>(null)
 
-    fun setComparison(a: String, b: String, ratio: Double) {
-        comparisons = comparisons + ("$a|$b" to ratio)
-        work { repo.putComparison(a, b, ratio) }
+    /**
+     * Priorities as levels and an order (your choice of 26 Oct 2026). [order] is every target shown,
+     * top to bottom, with the level it now sits in; targets not shown keep their places after them.
+     * [confirmed] are the ones you touched: no longer "chosen by the app".
+     */
+    fun reorderPriorities(order: List<Pair<String, Int>>, confirmed: Collection<String>) = edit { cfg ->
+        val next = IntArray(4)
+        val shown = order.map { it.first }.toSet()
+        order.forEach { (id, tier) ->
+            cfg.goal(id)?.let { g -> g.tier = tier; g.rank = next[tier]++; if (id in confirmed) g.tierAuto = false }
+        }
+        for (t in 0..3) com.chronos.engine.Priorities.level(cfg, t).filter { it.id !in shown }.forEach { it.rank = next[t]++ }
     }
 
-    fun applyWeights() {
-        val w = weightsPreview().weights()
-        edit { cfg -> cfg.goals.forEach { g -> g.weight = w[g.id] ?: g.weight } }
-        message = "Weights applied. Rebuild to let them move the plan."
+    /** A target's level from its editor or its row: at the end of that level, and confirmed. */
+    fun setTier(goalId: String, tier: Int) = edit { cfg ->
+        cfg.goal(goalId)?.let { g ->
+            if (g.tier != tier) { g.tier = tier; g.rank = Int.MAX_VALUE }
+            g.tierAuto = false
+        }
     }
+
+    /** Keeps what the app chose for these targets. */
+    fun confirmPriorities(ids: Collection<String>) = edit { cfg -> ids.forEach { cfg.goal(it)?.tierAuto = false } }
 
     fun forgetGoal(goalId: String) {
         comparisons = comparisons.filterKeys { !it.split("|").contains(goalId) }

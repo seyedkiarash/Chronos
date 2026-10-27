@@ -139,9 +139,71 @@ object LlmClient {
         else LlmRequest(req.task(), req.target(), req.system(),
             req.user() + "\n\nYou cannot search the web in this request: leave `sources` empty.", false)
 
-    /** Blocks; call on the IO thread. Throws on a network or API error. */
-    fun send(p: Profile, apiKey: String, req: LlmRequest): Reply =
-        if (p.kind == ProviderKind.ANTHROPIC) sendClaude(apiKey, p.model, req) else sendCompat(p, apiKey, req)
+    /**
+     * Blocks; call on the IO thread. Throws on a network or API error. An answer cut off at the
+     * length limit is asked to go on from where it stopped, up to twice, and the pieces joined, so
+     * what comes back is the whole answer (your request of 27 Oct 2026); one still cut off after
+     * that says so in its stop reason.
+     */
+    fun send(p: Profile, apiKey: String, req: LlmRequest): Reply {
+        var reply = sendOnce(p, apiKey, req, COMPAT_MAX_TOKENS)
+        // A thinking model may spend the whole allowance thinking and say nothing: once more with twice the room.
+        if (reply.text.isBlank() && cutOff(reply) && p.kind != ProviderKind.ANTHROPIC)
+            reply = sendOnce(p, apiKey, req, COMPAT_MAX_TOKENS * 2)
+        var rounds = 0
+        while (cutOff(reply) && reply.text.isNotBlank() && rounds < 2) {
+            rounds++
+            val more = sendOnce(p, apiKey, continuation(req, reply.text), COMPAT_MAX_TOKENS)
+            reply = reply.copy(text = joinAt(reply.text, more.text), tokensIn = reply.tokensIn + more.tokensIn,
+                tokensOut = reply.tokensOut + more.tokensOut, searches = reply.searches + more.searches,
+                stopReason = more.stopReason)
+        }
+        return reply
+    }
+
+    private fun sendOnce(p: Profile, apiKey: String, req: LlmRequest, maxTokens: Int): Reply =
+        if (p.kind == ProviderKind.ANTHROPIC) sendClaude(apiKey, p.model, req) else sendCompat(p, apiKey, req, maxTokens)
+
+    /** Stopped by the length limit rather than by finishing. */
+    fun cutOff(r: Reply) = r.stopReason == "length" || r.stopReason == "max_tokens"
+
+    /** The same question, with what was already written, asking for the rest of it. No web search the second time. */
+    internal fun continuation(req: LlmRequest, sofar: String): LlmRequest =
+        LlmRequest(req.task(), req.target(), req.system(), req.user() +
+            "\n\n---\nYour answer to this was cut off by the length limit. What you wrote so far:\n<<<\n" + sofar +
+            "\n>>>\nContinue exactly where it stops: write only the rest, without repeating anything, so the two " +
+            "pieces joined are the whole answer (and its JSON, if it ends with one, is complete).", false)
+
+    /** Two pieces of one answer, joined without the overlap a model sometimes repeats. */
+    internal fun joinAt(a: String, b: String): String {
+        val tail = b.trimStart()
+        for (n in minOf(200, a.length, tail.length) downTo 12)
+            if (a.endsWith(tail.substring(0, n))) return a + tail.substring(n)
+        return a + b
+    }
+
+    /**
+     * Sends with one of the provider's keys (several may be saved, 27 Oct 2026): the least busy one that
+     * is not resting after a limit. A key that hits its limit or is refused gives way to the next; what
+     * fails for every key alike (no network, the provider down) is thrown at once.
+     */
+    fun sendAnyKey(context: Context, p: Profile, req: LlmRequest): Reply {
+        val keys = KeyVault.keys(context, p.id)
+        if (keys.isEmpty()) throw IllegalStateException("No API key for ${p.label}")
+        val why = mutableListOf<String>()
+        repeat(keys.size) {
+            val key = KeyRing.take(p.id, keys) ?: throw IllegalStateException(
+                (why + "every key of ${p.label} is resting after a limit").distinct().joinToString("; "))
+            val err = try {
+                return send(p, key, req).also { KeyRing.give(p.id, key, null) }
+            } catch (e: Exception) {
+                (e.message ?: e.javaClass.simpleName).also { KeyRing.give(p.id, key, it) }
+            }
+            why += (if (keys.size > 1) "key …${key.takeLast(4)}: " else "") + err
+            if (!KeyRing.perKey(err)) throw IllegalStateException(why.joinToString("; "))
+        }
+        throw IllegalStateException(why.distinct().joinToString("; "))
+    }
 
     // ---------------------------------------------------------------- Claude
 
@@ -257,7 +319,7 @@ object LlmClient {
                 "Paste the key from openrouter.ai/keys in the LLM panel (${p.label} → Edit)."
         else null
 
-    private fun sendCompat(p: Profile, apiKey: String, req: LlmRequest): Reply {
+    private fun sendCompat(p: Profile, apiKey: String, req: LlmRequest, maxTokens: Int = COMPAT_MAX_TOKENS): Reply {
         require(p.model.isNotBlank()) { "No model is chosen for ${p.label}." }
         keyProblem(p, apiKey)?.let { throw IllegalStateException(it) }
         val body = JsonObject().apply {
@@ -267,7 +329,7 @@ object LlmClient {
                 add(JsonObject().apply { addProperty("role", "user"); addProperty("content", req.user()) })
             })
             // OpenAI's own newer models take the second name; the rest take the first.
-            addProperty(if (p.baseUrl.contains("api.openai.com")) "max_completion_tokens" else "max_tokens", COMPAT_MAX_TOKENS)
+            addProperty(if (p.baseUrl.contains("api.openai.com")) "max_completion_tokens" else "max_tokens", maxTokens)
         }
         val c = open(p.baseUrl.trimEnd('/') + "/chat/completions", apiKey, "POST")
         try {
@@ -321,7 +383,7 @@ object LlmClient {
 }
 
 /**
- * API keys, one per provider, encrypted with a key that never leaves the
+ * API keys, one or several per provider, encrypted with a key that never leaves the
  * Android Keystore. What is stored in preferences is useless off this phone.
  */
 object KeyVault {
@@ -331,6 +393,29 @@ object KeyVault {
     const val LEGACY = "apiKeyEnc"
 
     private fun field(profileId: String) = "apiKeyEnc.$profileId"
+    /** Every key of a provider, one per line (27 Oct 2026); [field] keeps the first, as before. */
+    private fun ring(profileId: String) = "apiKeysEnc.$profileId"
+
+    /** Every key saved for a provider, the first one first. */
+    fun keys(context: Context, profileId: String): List<String> =
+        open(context, ring(profileId))?.split('\n')?.map { it.trim() }?.filter { it.isNotEmpty() }
+            ?: listOfNotNull(open(context, field(profileId)))
+
+    /** Saves a provider's keys, in order; an empty list forgets them. */
+    fun saveKeys(context: Context, profileId: String, keys: List<String>) {
+        val clean = keys.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (clean.isEmpty()) { prefs.edit().remove(field(profileId)).remove(ring(profileId)).apply(); return }
+        prefs.edit().putString(field(profileId), seal(clean.first()))
+            .putString(ring(profileId), seal(clean.joinToString("\n"))).apply()
+    }
+
+    private fun seal(text: String): String {
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, secret())
+        val sealed = cipher.iv + cipher.doFinal(text.toByteArray(Charsets.UTF_8))
+        return Base64.encodeToString(sealed, Base64.NO_WRAP)
+    }
 
     private fun secret(): SecretKey {
         val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
@@ -343,16 +428,13 @@ object KeyVault {
         return gen.generateKey()
     }
 
+    /** The first key replaced (the others stay); null forgets every key of the provider. */
     fun save(context: Context, profileId: String, apiKey: String?) {
-        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (apiKey.isNullOrBlank()) { prefs.edit().remove(field(profileId)).apply(); return }
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, secret())
-        val sealed = cipher.iv + cipher.doFinal(apiKey.trim().toByteArray(Charsets.UTF_8))
-        prefs.edit().putString(field(profileId), Base64.encodeToString(sealed, Base64.NO_WRAP)).apply()
+        if (apiKey.isNullOrBlank()) { saveKeys(context, profileId, emptyList()); return }
+        saveKeys(context, profileId, listOf(apiKey) + keys(context, profileId).drop(1))
     }
 
-    fun load(context: Context, profileId: String): String? = open(context, field(profileId))
+    fun load(context: Context, profileId: String): String? = keys(context, profileId).firstOrNull()
 
     internal fun open(context: Context, name: String): String? {
         val stored = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(name, null) ?: return null
@@ -374,6 +456,61 @@ object KeyVault {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val stored = prefs.getString(LEGACY, null) ?: return
         prefs.edit().putString(field(profileId), stored).remove(LEGACY).apply()
+    }
+}
+
+/**
+ * Which of a provider's keys the next request goes out with (your request of 27 Oct 2026: several
+ * Gemini and OpenRouter keys used together, for speed and for doing several things at once). The
+ * least busy key goes, so requests sent together go out on different keys; a key that hit its
+ * limit rests (a minute after a per-minute limit, until tomorrow after a daily one, a few hours
+ * when it is refused) and the others carry on. Kept in memory only: a new start forgets the rests.
+ */
+object KeyRing {
+    private val busy = HashMap<String, Int>()
+    private val restUntil = HashMap<String, Long>()
+
+    private fun id(profileId: String, key: String) = profileId + "…" + key.takeLast(6) + key.length
+
+    /** Whether an error belongs to the key rather than to the provider: another key may do better. */
+    fun perKey(err: String) =
+        Regex("HTTP (401|402|429)|quota|rate.?limit|per-day|exceeded|not an OpenRouter key", RegexOption.IGNORE_CASE)
+            .containsMatchIn(err) || (err.contains("HTTP 403") && !err.contains("<html", true) && !err.contains("security policy", true))
+
+    private fun tomorrow() = java.time.LocalDate.now().plusDays(1)
+        .atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+    /** A key to send with now, counted busy until [give]; null when every one is resting. */
+    @Synchronized fun take(profileId: String, keys: List<String>): String? {
+        val now = System.currentTimeMillis()
+        val key = keys.filter { (restUntil[id(profileId, it)] ?: 0L) <= now }
+            .minByOrNull { busy[id(profileId, it)] ?: 0 } ?: return null
+        busy[id(profileId, key)] = (busy[id(profileId, key)] ?: 0) + 1
+        return key
+    }
+
+    /** The request is over; [err] says why it failed, if it did. */
+    @Synchronized fun give(profileId: String, key: String, err: String?) {
+        val k = id(profileId, key)
+        busy[k] = maxOf(0, (busy[k] ?: 1) - 1)
+        if (err == null) return
+        val now = System.currentTimeMillis()
+        val until = when {
+            err.contains("HTTP 429") && Regex("per.?day|daily|quota", RegexOption.IGNORE_CASE).containsMatchIn(err) -> tomorrow()
+            err.contains("HTTP 429") -> now + 65_000L
+            err.contains("HTTP 401") || err.contains("HTTP 402") -> now + 6 * 3_600_000L
+            else -> 0L
+        }
+        if (until > now) restUntil[k] = until
+    }
+
+    /** Puts a key to rest until tomorrow (its daily allowance is spent). */
+    @Synchronized fun spent(profileId: String, key: String) { restUntil[id(profileId, key)] = tomorrow() }
+
+    /** How many of the keys may be used now. */
+    @Synchronized fun ready(profileId: String, keys: List<String>): Int {
+        val now = System.currentTimeMillis()
+        return keys.count { (restUntil[id(profileId, it)] ?: 0L) <= now }
     }
 }
 

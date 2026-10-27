@@ -16,12 +16,22 @@ public class Activity {
         public Pin copy() { return new Pin(day, start); }
     }
 
-    /** A span of the day this activity may occupy. */
+    /**
+     * A span of the day this activity may occupy. {@link #days}: the weekdays it holds on
+     * (0 = Saturday), null for every day the activity happens — so each weekday may have hours
+     * of its own (your request of 27 Oct 2026).
+     */
     public static class Window {
         public String from, to;
+        public TreeSet<Integer> days;
         public Window() {}
         public Window(String from, String to) { this.from = from; this.to = to; }
-        public Window copy() { return new Window(from, to); }
+        public Window(String from, String to, java.util.Collection<Integer> days) {
+            this(from, to);
+            if (days != null) this.days = new TreeSet<>(days);
+        }
+        public boolean on(int dow) { return days == null || days.contains(dow); }
+        public Window copy() { return new Window(from, to, days); }
     }
 
     public String id;
@@ -51,6 +61,19 @@ public class Activity {
 
     public List<Window> windows = new ArrayList<>();
     public List<Pin> pins = new ArrayList<>();
+
+    /** Whether some window holds on certain weekdays only. */
+    public boolean windowsByDay() {
+        for (Window w : windows) if (w.days != null) return true;
+        return false;
+    }
+
+    /** The windows that hold on a weekday (0 = Saturday). */
+    public List<Window> windowsOn(int dow) {
+        List<Window> out = new ArrayList<>();
+        for (Window w : windows) if (w.on(dow)) out.add(w);
+        return out;
+    }
 
     public BlocksMode blocksMode = BlocksMode.AUTO;
     public int maxBlocks = 1;                         // used when blocksMode == FIXED

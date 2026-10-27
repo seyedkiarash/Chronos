@@ -133,9 +133,9 @@ object AutoPlanner {
     fun sleepTitle(context: Context): String? {
         val p = prefs(context)
         if (!p.getBoolean("sleepInCalendar", true)) return null
-        val lang = com.chronos.ui.Lang.entries.firstOrNull { it.code == p.getString("lang", null) }
-            ?: com.chronos.ui.Lang.English
-        return com.chronos.ui.translate(lang, "Sleep")
+        val lang = com.chronos.ui.common.Lang.entries.firstOrNull { it.code == p.getString("lang", null) }
+            ?: com.chronos.ui.common.Lang.English
+        return com.chronos.ui.common.translate(lang, "Sleep")
     }
 
     private fun saveReport(

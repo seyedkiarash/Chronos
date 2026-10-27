@@ -28,6 +28,8 @@ public class Block {
     /** A rest chosen from your leisure; [dopamine] is how stimulating an hour of it is. */
     public boolean leisure;
     public double dopamine;
+    /** Arranged before the hour the day was built again from: stays where it is (not stored). */
+    public boolean kept;
     public String reason;              // why it could not be placed
     public String why;                 // what a gap is for
 
@@ -40,7 +42,7 @@ public class Block {
         b.load = load; b.recovery = recovery; b.physLoad = physLoad; b.physRecovery = physRecovery; b.qPlan = qPlan; b.priority = priority;
         b.tab = tab; b.windows = windows;
         b.fixed = fixed; b.away = away; b.gap = gap; b.forced = forced;
-        b.leisure = leisure; b.dopamine = dopamine;
+        b.leisure = leisure; b.dopamine = dopamine; b.kept = kept;
         b.reason = reason; b.why = why; b.meanEta = meanEta; b.yieldMin = yieldMin;
         return b;
     }

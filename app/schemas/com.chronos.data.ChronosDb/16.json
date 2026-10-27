@@ -1,0 +1,1578 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 16,
+    "identityHash": "0a9784d38ed085b8ab9eb84d0c6f8338",
+    "entities": [
+      {
+        "tableName": "params",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `sleepStart` TEXT, `sleepEnd` TEXT, `phi` INTEGER, `a0` REAL, `aC` REAL, `aH` REAL, `aF` REAL, `tauR` REAL NOT NULL, `tauD` REAL NOT NULL, `fMax` REAL NOT NULL, `fSafe` REAL, `idleRecovery` REAL, `slackRatio` REAL, `lcbBeta` REAL, `switchPenalty` REAL, `fatiguePenalty` REAL, `horizonDays` INTEGER, `aP` REAL, `pTheta` REAL, `fSafeP` REAL, `idleRecoveryP` REAL, `kMP` REAL, `dopCap` REAL, `dopHalfLifeH` REAL, `aD` REAL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sleepStart",
+            "columnName": "sleepStart",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sleepEnd",
+            "columnName": "sleepEnd",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "phi",
+            "columnName": "phi",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "a0",
+            "columnName": "a0",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "aC",
+            "columnName": "aC",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "aH",
+            "columnName": "aH",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "aF",
+            "columnName": "aF",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "tauR",
+            "columnName": "tauR",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tauD",
+            "columnName": "tauD",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fMax",
+            "columnName": "fMax",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fSafe",
+            "columnName": "fSafe",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "idleRecovery",
+            "columnName": "idleRecovery",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "slackRatio",
+            "columnName": "slackRatio",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "lcbBeta",
+            "columnName": "lcbBeta",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "switchPenalty",
+            "columnName": "switchPenalty",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "fatiguePenalty",
+            "columnName": "fatiguePenalty",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "horizonDays",
+            "columnName": "horizonDays",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "aP",
+            "columnName": "aP",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "pTheta",
+            "columnName": "pTheta",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "fSafeP",
+            "columnName": "fSafeP",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "idleRecoveryP",
+            "columnName": "idleRecoveryP",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "kMP",
+            "columnName": "kMP",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "dopCap",
+            "columnName": "dopCap",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "dopHalfLifeH",
+            "columnName": "dopHalfLifeH",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "aD",
+            "columnName": "aD",
+            "affinity": "REAL"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "goals",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT, `mode` TEXT, `hard` INTEGER NOT NULL, `totalUnits` REAL, `doneUnits` REAL, `hoursPerUnit` REAL, `weeklyFloorH` REAL, `maxPerDayH` REAL, `unit` TEXT, `deadline` TEXT, `weight` REAL NOT NULL, `position` INTEGER NOT NULL, `groupName` TEXT, `note` TEXT, `deadlineTime` TEXT, `tier` INTEGER, `rank` INTEGER, `tierAuto` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "mode",
+            "columnName": "mode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "hard",
+            "columnName": "hard",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "totalUnits",
+            "columnName": "totalUnits",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "doneUnits",
+            "columnName": "doneUnits",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "hoursPerUnit",
+            "columnName": "hoursPerUnit",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "weeklyFloorH",
+            "columnName": "weeklyFloorH",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "maxPerDayH",
+            "columnName": "maxPerDayH",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "unit",
+            "columnName": "unit",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "deadline",
+            "columnName": "deadline",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "weight",
+            "columnName": "weight",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "groupName",
+            "columnName": "groupName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "deadlineTime",
+            "columnName": "deadlineTime",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "tier",
+            "columnName": "tier",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "rank",
+            "columnName": "rank",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "tierAuto",
+            "columnName": "tierAuto",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "activities",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT, `kind` TEXT, `goalId` TEXT, `days` TEXT, `minBlock` INTEGER, `maxBlock` INTEGER, `load` REAL, `recovery` REAL, `physLoad` REAL, `physRecovery` REAL, `splitConfirmed` INTEGER NOT NULL, `q` REAL NOT NULL, `qSigma` REAL NOT NULL, `k` REAL NOT NULL, `u0` REAL NOT NULL, `theta` REAL NOT NULL, `windows` TEXT, `pins` TEXT, `blocksMode` TEXT, `maxBlocks` INTEGER NOT NULL, `needsHighEnergy` INTEGER NOT NULL, `away` INTEGER NOT NULL, `changeoverMin` INTEGER, `sacrifice` INTEGER, `keepMin` INTEGER, `nap` INTEGER NOT NULL, `restOnly` INTEGER NOT NULL, `archived` INTEGER NOT NULL, `pauseFrom` TEXT, `pauseUntil` TEXT, `startDate` TEXT, `startTime` TEXT, `endDate` TEXT, `leisure` INTEGER NOT NULL, `dopamine` REAL, `dopamineSeen` INTEGER NOT NULL, `position` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "goalId",
+            "columnName": "goalId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "days",
+            "columnName": "days",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "minBlock",
+            "columnName": "minBlock",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "maxBlock",
+            "columnName": "maxBlock",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "load",
+            "columnName": "load",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "recovery",
+            "columnName": "recovery",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "physLoad",
+            "columnName": "physLoad",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "physRecovery",
+            "columnName": "physRecovery",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "splitConfirmed",
+            "columnName": "splitConfirmed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "q",
+            "columnName": "q",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qSigma",
+            "columnName": "qSigma",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "k",
+            "columnName": "k",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "u0",
+            "columnName": "u0",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "theta",
+            "columnName": "theta",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "windows",
+            "columnName": "windows",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pins",
+            "columnName": "pins",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "blocksMode",
+            "columnName": "blocksMode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "maxBlocks",
+            "columnName": "maxBlocks",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "needsHighEnergy",
+            "columnName": "needsHighEnergy",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "away",
+            "columnName": "away",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "changeoverMin",
+            "columnName": "changeoverMin",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sacrifice",
+            "columnName": "sacrifice",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "keepMin",
+            "columnName": "keepMin",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "nap",
+            "columnName": "nap",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "restOnly",
+            "columnName": "restOnly",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "archived",
+            "columnName": "archived",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pauseFrom",
+            "columnName": "pauseFrom",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pauseUntil",
+            "columnName": "pauseUntil",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "startDate",
+            "columnName": "startDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "startTime",
+            "columnName": "startTime",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "endDate",
+            "columnName": "endDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "leisure",
+            "columnName": "leisure",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dopamine",
+            "columnName": "dopamine",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "dopamineSeen",
+            "columnName": "dopamineSeen",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "commitments",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `name` TEXT, `kind` TEXT, `load` REAL, `recovery` REAL, `physLoad` REAL, `physRecovery` REAL, `away` INTEGER NOT NULL, `sessions` TEXT, `medianMin` REAL, `sigma` REAL, `quantile` REAL, `outbound` TEXT, `inbound` TEXT, `position` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "load",
+            "columnName": "load",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "recovery",
+            "columnName": "recovery",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "physLoad",
+            "columnName": "physLoad",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "physRecovery",
+            "columnName": "physRecovery",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "away",
+            "columnName": "away",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sessions",
+            "columnName": "sessions",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "medianMin",
+            "columnName": "medianMin",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "sigma",
+            "columnName": "sigma",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "quantile",
+            "columnName": "quantile",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "outbound",
+            "columnName": "outbound",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "inbound",
+            "columnName": "inbound",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "comparisons",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`pairKey` TEXT NOT NULL, `ratio` REAL NOT NULL, PRIMARY KEY(`pairKey`))",
+        "fields": [
+          {
+            "fieldPath": "pairKey",
+            "columnName": "pairKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ratio",
+            "columnName": "ratio",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "pairKey"
+          ]
+        }
+      },
+      {
+        "tableName": "logs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `kind` TEXT, `date` TEXT, `at` TEXT, `ts` INTEGER NOT NULL, `actId` TEXT, `comId` TEXT, `planned` INTEGER, `actual` INTEGER, `focus` INTEGER, `fatigueAfter` INTEGER, `restored` INTEGER, `energy` INTEGER, `mentalAfter` INTEGER, `physicalAfter` INTEGER, `attain` REAL, `units` REAL, `countedUnits` REAL, `endAt` TEXT, `latencyMin` INTEGER, `wakeups` INTEGER, `stopHard` INTEGER, `nextStart` INTEGER, `craving` INTEGER, `tags` TEXT, `note` TEXT, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "at",
+            "columnName": "at",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ts",
+            "columnName": "ts",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actId",
+            "columnName": "actId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "comId",
+            "columnName": "comId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "planned",
+            "columnName": "planned",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "actual",
+            "columnName": "actual",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "focus",
+            "columnName": "focus",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "fatigueAfter",
+            "columnName": "fatigueAfter",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "restored",
+            "columnName": "restored",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "energy",
+            "columnName": "energy",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "mentalAfter",
+            "columnName": "mentalAfter",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "physicalAfter",
+            "columnName": "physicalAfter",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "attain",
+            "columnName": "attain",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "units",
+            "columnName": "units",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "countedUnits",
+            "columnName": "countedUnits",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "endAt",
+            "columnName": "endAt",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "latencyMin",
+            "columnName": "latencyMin",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "wakeups",
+            "columnName": "wakeups",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "stopHard",
+            "columnName": "stopHard",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "nextStart",
+            "columnName": "nextStart",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "craving",
+            "columnName": "craving",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "tags",
+            "columnName": "tags",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "snapshots",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `createdAt` INTEGER NOT NULL, `startDate` TEXT, `horizonDays` INTEGER NOT NULL, `configHash` TEXT, `allocation` TEXT, `violations` TEXT, `shortfalls` TEXT, `overdue` TEXT, `cuts` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startDate",
+            "columnName": "startDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "horizonDays",
+            "columnName": "horizonDays",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "configHash",
+            "columnName": "configHash",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "allocation",
+            "columnName": "allocation",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "violations",
+            "columnName": "violations",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "shortfalls",
+            "columnName": "shortfalls",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "overdue",
+            "columnName": "overdue",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "cuts",
+            "columnName": "cuts",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "day_plans",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `snapshotId` INTEGER NOT NULL, `seed` INTEGER NOT NULL, `blocks` TEXT, `gaps` TEXT, `warnings` TEXT, `effectiveMinutes` REAL NOT NULL, `elapsedMinutes` REAL NOT NULL, `excess` REAL NOT NULL, `goalBlocks` INTEGER NOT NULL, `synced_to_calendar` INTEGER NOT NULL, PRIMARY KEY(`date`))",
+        "fields": [
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "snapshotId",
+            "columnName": "snapshotId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "seed",
+            "columnName": "seed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "blocks",
+            "columnName": "blocks",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "gaps",
+            "columnName": "gaps",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "warnings",
+            "columnName": "warnings",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "effectiveMinutes",
+            "columnName": "effectiveMinutes",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "elapsedMinutes",
+            "columnName": "elapsedMinutes",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "excess",
+            "columnName": "excess",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "goalBlocks",
+            "columnName": "goalBlocks",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncedToCalendar",
+            "columnName": "synced_to_calendar",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "date"
+          ]
+        }
+      },
+      {
+        "tableName": "app_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `todayAnchor` TEXT, `lastCalibration` TEXT, `lastAutoCalibration` TEXT, `calendarId` INTEGER, `syncedThrough` TEXT, `appliedTs` INTEGER, `restDays` TEXT, `planFrom` TEXT, `schemaNotes` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "todayAnchor",
+            "columnName": "todayAnchor",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lastCalibration",
+            "columnName": "lastCalibration",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lastAutoCalibration",
+            "columnName": "lastAutoCalibration",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "calendarId",
+            "columnName": "calendarId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "syncedThrough",
+            "columnName": "syncedThrough",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "appliedTs",
+            "columnName": "appliedTs",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "restDays",
+            "columnName": "restDays",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "planFrom",
+            "columnName": "planFrom",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "schemaNotes",
+            "columnName": "schemaNotes",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "nav_graph",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `schemaVersion` TEXT, `title` TEXT, `fileName` TEXT, `importedAt` INTEGER NOT NULL, `json` TEXT, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "schemaVersion",
+            "columnName": "schemaVersion",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "fileName",
+            "columnName": "fileName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "importedAt",
+            "columnName": "importedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "json",
+            "columnName": "json",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "nav_nodes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `type` TEXT, `owner` TEXT, `status` TEXT, `phase` TEXT, `title` TEXT, `json` TEXT, `position` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "owner",
+            "columnName": "owner",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "phase",
+            "columnName": "phase",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "json",
+            "columnName": "json",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "nav_edges",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`fromId` TEXT NOT NULL, `toId` TEXT NOT NULL, `kind` TEXT NOT NULL, `grp` INTEGER NOT NULL, `coef` REAL, PRIMARY KEY(`fromId`, `toId`, `kind`, `grp`))",
+        "fields": [
+          {
+            "fieldPath": "fromId",
+            "columnName": "fromId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "toId",
+            "columnName": "toId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "grp",
+            "columnName": "grp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "coef",
+            "columnName": "coef",
+            "affinity": "REAL"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "fromId",
+            "toId",
+            "kind",
+            "grp"
+          ]
+        }
+      },
+      {
+        "tableName": "nav_regimes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `fromDate` TEXT, `toDate` TEXT, `json` TEXT, `position` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fromDate",
+            "columnName": "fromDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "toDate",
+            "columnName": "toDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "json",
+            "columnName": "json",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "position",
+            "columnName": "position",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "nav_params",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`key` TEXT NOT NULL, `dist` TEXT, `vals` TEXT, `source` TEXT NOT NULL, `note` TEXT, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`key`))",
+        "fields": [
+          {
+            "fieldPath": "key",
+            "columnName": "key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dist",
+            "columnName": "dist",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "vals",
+            "columnName": "vals",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "source",
+            "columnName": "source",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "note",
+            "columnName": "note",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "key"
+          ]
+        }
+      },
+      {
+        "tableName": "nav_links",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`linkKey` TEXT NOT NULL, `activityName` TEXT, PRIMARY KEY(`linkKey`))",
+        "fields": [
+          {
+            "fieldPath": "linkKey",
+            "columnName": "linkKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activityName",
+            "columnName": "activityName",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "linkKey"
+          ]
+        }
+      },
+      {
+        "tableName": "nav_day_types",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `type` TEXT, `anomaly` INTEGER NOT NULL, `suggested` TEXT, `savedAt` INTEGER NOT NULL, PRIMARY KEY(`date`))",
+        "fields": [
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "anomaly",
+            "columnName": "anomaly",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "suggested",
+            "columnName": "suggested",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "savedAt",
+            "columnName": "savedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "date"
+          ]
+        }
+      },
+      {
+        "tableName": "nav_forecasts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `runAt` INTEGER NOT NULL, `seed` INTEGER NOT NULL, `runs` INTEGER NOT NULL, `asOf` TEXT, `millis` INTEGER NOT NULL, `json` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "runAt",
+            "columnName": "runAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "seed",
+            "columnName": "seed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "runs",
+            "columnName": "runs",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "asOf",
+            "columnName": "asOf",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "millis",
+            "columnName": "millis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "json",
+            "columnName": "json",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "nav_forecast_nodes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`forecastId` INTEGER NOT NULL, `nodeId` TEXT NOT NULL, `pByDeadline` REAL, `p10` TEXT, `p50` TEXT, `p90` TEXT, `critical` REAL, PRIMARY KEY(`forecastId`, `nodeId`))",
+        "fields": [
+          {
+            "fieldPath": "forecastId",
+            "columnName": "forecastId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nodeId",
+            "columnName": "nodeId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pByDeadline",
+            "columnName": "pByDeadline",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "p10",
+            "columnName": "p10",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "p50",
+            "columnName": "p50",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "p90",
+            "columnName": "p90",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "critical",
+            "columnName": "critical",
+            "affinity": "REAL"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "forecastId",
+            "nodeId"
+          ]
+        }
+      },
+      {
+        "tableName": "nav_allocations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`week` TEXT NOT NULL, `nodeId` TEXT NOT NULL, `plannedH` REAL NOT NULL, `reason` TEXT, `status` TEXT, `savedAt` INTEGER NOT NULL, PRIMARY KEY(`week`, `nodeId`))",
+        "fields": [
+          {
+            "fieldPath": "week",
+            "columnName": "week",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nodeId",
+            "columnName": "nodeId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "plannedH",
+            "columnName": "plannedH",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reason",
+            "columnName": "reason",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "savedAt",
+            "columnName": "savedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "week",
+            "nodeId"
+          ]
+        }
+      },
+      {
+        "tableName": "nav_triggers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `kind` TEXT, `node` TEXT, `value` REAL, `firedAt` INTEGER NOT NULL, `cooldownUntil` INTEGER NOT NULL, `armed` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "node",
+            "columnName": "node",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "value",
+            "columnName": "value",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "firedAt",
+            "columnName": "firedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cooldownUntil",
+            "columnName": "cooldownUntil",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "armed",
+            "columnName": "armed",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "nav_proposals",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `llmCallId` TEXT, `ops` TEXT, `status` TEXT, `validation` TEXT, `summary` TEXT, `createdAt` INTEGER NOT NULL, `decidedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "llmCallId",
+            "columnName": "llmCallId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ops",
+            "columnName": "ops",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "validation",
+            "columnName": "validation",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "summary",
+            "columnName": "summary",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "decidedAt",
+            "columnName": "decidedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "nav_llm_calls",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `task` TEXT, `trigger` TEXT, `requestHash` TEXT, `model` TEXT, `tokensIn` INTEGER NOT NULL, `tokensOut` INTEGER NOT NULL, `costUsd` REAL NOT NULL, `sources` TEXT, `status` TEXT, `error` TEXT, `createdAt` INTEGER NOT NULL, `doneAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "task",
+            "columnName": "task",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "trigger",
+            "columnName": "trigger",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "requestHash",
+            "columnName": "requestHash",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "model",
+            "columnName": "model",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "tokensIn",
+            "columnName": "tokensIn",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tokensOut",
+            "columnName": "tokensOut",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "costUsd",
+            "columnName": "costUsd",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sources",
+            "columnName": "sources",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "error",
+            "columnName": "error",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "doneAt",
+            "columnName": "doneAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0a9784d38ed085b8ab9eb84d0c6f8338')"
+    ]
+  }
+}

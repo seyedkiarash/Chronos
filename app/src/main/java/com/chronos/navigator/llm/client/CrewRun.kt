@@ -93,12 +93,17 @@ class CrewSettings(private val context: Context) {
         prefs.edit().putInt("crew.freeCount", max(0, prefs.getInt("crew.freeCount", 0) - 1)).apply()
     }
 
-    /** OpenRouter said the day's free requests are used up: none more today. */
+    /** OpenRouter said the day's free requests are used up, on every key: none more today. */
     fun exhausted() {
-        prefs.edit().putString("crew.freeDay", LocalDate.now().toString()).putInt("crew.freeCount", max(freeDailyCap, freeUsedToday)).apply()
+        prefs.edit().putString("crew.freeDay", LocalDate.now().toString())
+            .putInt("crew.freeCount", max(freeDailyCap * routerKeys(), freeUsedToday)).apply()
     }
 
-    val freeLeft get() = max(0, freeDailyCap - freeUsedToday)
+    /** Each OpenRouter key (its own account) has its own free allowance (27 Oct 2026). */
+    private fun routerKeys(): Int = LlmSettings(context).profiles.firstOrNull { it.preset == "openrouter" }
+        ?.let { KeyVault.keys(context, it.id).size }?.coerceAtLeast(1) ?: 1
+
+    val freeLeft get() = max(0, freeDailyCap * routerKeys() - freeUsedToday)
 
     fun pick(role: Crew.Role): Pick? = picks[role.name]
 
@@ -335,7 +340,11 @@ object CrewRun {
         val job = Job(java.util.UUID.randomUUID().toString(), "HABITS", why, System.currentTimeMillis())
         save(context, job)
         val measured = measure(context, base, parsed.ops())
+        // A newer reading of the log replaces one still waiting, rather than piling up beside it.
+        val inbox = NavProposals(DatabaseWiring.navigator(context).dao())
+        val older = inbox.proposals().filter { it.status() == "PENDING" && it.crew()?.get("kind")?.asString == "HABITS" }
         val id = file(context, job, base, parsed, measured, null, null, 1, emptyList())
+        older.forEach { inbox.markOutdated(it.id(), if (fa) "خواندن تازه‌تری از لاگت جایش را گرفت" else "A newer reading of your log replaced it") }
         finish(context, job, id, parsed.message() ?: summary)
         return id
     }
@@ -440,15 +449,19 @@ object CrewRun {
         return picks
     }
 
-    /** OpenRouter's free models allow 20 requests a minute: requests wait their turn. */
+    /** OpenRouter's free models allow 20 requests a minute, per key: requests on one key wait their turn. */
     private object Pace {
-        private val sent = ArrayDeque<Long>()
-        @Synchronized fun await() {
+        private val sent = HashMap<String, ArrayDeque<Long>>()
+        fun await(key: String) {
             while (true) {
-                val now = System.currentTimeMillis()
-                while (sent.isNotEmpty() && now - sent.first() > 60_000) sent.removeFirst()
-                if (sent.size < 18) { sent.addLast(now); return }
-                Thread.sleep(60_000 - (now - sent.first()) + 250)
+                val wait = synchronized(this) {
+                    val q = sent.getOrPut(key.takeLast(8)) { ArrayDeque() }
+                    val now = System.currentTimeMillis()
+                    while (q.isNotEmpty() && now - q.first() > 60_000) q.removeFirst()
+                    if (q.size < 18) { q.addLast(now); 0L } else 60_000 - (now - q.first()) + 250
+                }
+                if (wait == 0L) return
+                Thread.sleep(wait)
             }
         }
     }
@@ -470,6 +483,10 @@ object CrewRun {
         val router = llm.profiles.firstOrNull { it.preset == "openrouter" }
         val tries = mutableListOf(home.copy(model = pick.model))
         if (router != null) s.fallbacks.filter { it != pick.model }.take(3).forEach { tries += router.copy(model = it) }
+        // Then every other provider you set up with a key and a model (27 Oct 2026): a message is not lost
+        // because the crew's own models are busy.
+        llm.profiles.filter { it.id != home.id && it.preset != "openrouter" && it.model.isNotBlank() && KeyVault.has(context, it.id) }
+            .forEach { tries += it }
         val inbox = NavProposals(DatabaseWiring.navigator(context).dao())
         val why = mutableListOf<String>()
         var badKey = false
@@ -478,28 +495,34 @@ object CrewRun {
             if (freeOne && s.freeLeft <= 0) { why += "OpenRouter's free requests for today are used up"; continue }
             // A key of the wrong kind fails the same way for every model of that provider.
             if (badKey && p.preset == "openrouter") continue
-            val key = KeyVault.load(context, p.id)
-            if (key == null) { why += "No key for ${p.label}"; continue }
-            val wrongKey = LlmClient.keyProblem(p, key)
-            if (wrongKey != null) { why += wrongKey; if (p.preset == "openrouter") badKey = true; continue }
+            val all = KeyVault.keys(context, p.id)
+            if (all.isEmpty()) { why += "No key for ${p.label}"; continue }
+            val keys = all.filter { LlmClient.keyProblem(p, it) == null }
+            if (keys.isEmpty()) { why += LlmClient.keyProblem(p, all.first())!!; if (p.preset == "openrouter") badKey = true; continue }
             if (!freeOne) {
                 // The monthly budget holds for a paid provider; the per-provider question ceiling is for single questions.
                 val no = NavAsk.refusal(context, p, req)
                 if (no != null && !no.contains("questions today")) { why += no; continue }
             }
             // A busy provider (503, a dropped connection) is often free again in a few seconds: the same model is
-            // tried up to three times before the next one.
-            for (attempt in 0 until 3) {
-                if (attempt > 0) Thread.sleep(15_000L * attempt)
+            // tried up to three times before the next one. A key at its limit gives way to the next key at once.
+            var attempt = 0
+            var swaps = 0
+            var waited = 0
+            while (attempt < 3) {
+                if (attempt > waited) { Thread.sleep(15_000L * attempt); waited = attempt }
+                val key = KeyRing.take(p.id, keys)
+                if (key == null) { why += "every key of ${p.label} is resting after a limit"; break }
                 val call = inbox.queue(Crew.task(job.id, role), "crew:${role.name}@${p.id}#crew", p.label + " · " + p.model)
                 call.status = "SENT"
                 call.requestHash = MessageDigest.getInstance("SHA-256")
                     .digest((req.system() + "\n" + req.user()).toByteArray()).joinToString("") { "%02x".format(it) }
                 inbox.put(call)
-                if (freeOne) { Pace.await(); s.countFree() }
+                if (freeOne) { Pace.await(key); s.countFree() }
                 job.requests++
                 try {
                     val reply = LlmClient.send(p, key, req)
+                    KeyRing.give(p.id, key, null)
                     call.model = p.label + " · " + reply.model
                     call.tokensIn = reply.tokensIn.toInt(); call.tokensOut = reply.tokensOut.toInt()
                     call.costUsd = LlmClient.costUsd(p, reply)
@@ -515,8 +538,14 @@ object CrewRun {
                     val err = e.message ?: e.javaClass.simpleName
                     call.status = "FAILED"; call.error = err; call.doneAt = System.currentTimeMillis()
                     inbox.put(call)
-                    if (freeOne && err.contains("HTTP 429") && err.contains("per-day", true)) s.exhausted()
+                    KeyRing.give(p.id, key, err)
+                    if (freeOne && err.contains("HTTP 429") && err.contains("per-day", true)) {
+                        KeyRing.spent(p.id, key)
+                        if (KeyRing.ready(p.id, keys) == 0) s.exhausted()
+                    }
                     why += "${p.model}: $err"
+                    // This key's limit, with another key ready: the next key, at once, without using up a try.
+                    if (KeyRing.perKey(err) && swaps < keys.size - 1 && KeyRing.ready(p.id, keys) > 0) { swaps++; continue }
                     // The key itself is refused: no other model behind it will do better, and nothing was used up.
                     // 401: the key is refused; 403 from OpenRouter: this network is blocked. Neither gets better with
                     // another model behind the same door, and neither used up the day's allowance.
@@ -526,6 +555,7 @@ object CrewRun {
                         break
                     }
                     if (!transient(err)) break
+                    attempt++
                 }
             }
         }

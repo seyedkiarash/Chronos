@@ -97,6 +97,10 @@ public class ChronosRepository {
                 }
             }
         }
+        // Targets without a priority level — all of them, the first time — are placed once.
+        boolean unplaced = false;
+        for (com.chronos.model.Goal g : cfg.goals) if (g.tier == null) { unplaced = true; break; }
+        if (unplaced) synchronized (this) { saveConfig(cfg); }
         cfg.planFrom = planFrom();
         return cfg;
     }
@@ -111,6 +115,8 @@ public class ChronosRepository {
     /** Written as one transaction: a half-saved configuration reads as a set of
      *  missing answers and would lock the solver for no reason. */
     public void saveConfig(Config cfg) {
+        // Weights follow the priority levels and places; a target without one is placed (26 Oct 2026).
+        com.chronos.engine.Priorities.settle(cfg, logicalToday());
         configDao.replaceAll(Mappers.toRow(cfg.params), Mappers.goalRows(cfg),
                              Mappers.activityRows(cfg), Mappers.commitmentRows(cfg));
     }
@@ -347,24 +353,14 @@ public class ChronosRepository {
         // The day you are in loses its old arrangement above. Arrange it again now,
         // rather than when a screen happens to ask: if none asks before the day
         // closes, the day would be left with no kept plan and its log page empty.
-        if (!start.isAfter(lived)) {
-            DaySequencer.Result today = dayPlan(cfg, bundle, lived);
-            if (!kept.isEmpty() && start.equals(lived)) {
-                List<Block> merged = new ArrayList<>(kept);
-                merged.addAll(today.blocks());
-                merged.sort(java.util.Comparator.comparingInt(b -> b.start));
-                store(lived, id, seedFor(lived, bundle.configHash()), new DaySequencer.Result(merged, today.gaps(),
-                    today.unplaced(), today.warnings(), today.score(), today.effectiveMinutes(), today.elapsedMinutes(),
-                    today.freeSlots(), today.usedSlots(), today.usableSlots(), today.undelivered()));
-            }
-        }
+        if (!start.isAfter(lived)) arrange(cfg, bundle, lived, start.equals(lived) ? kept : List.of());
         return bundle;
     }
 
     /**
-     * The blocks of today's arrangement that start before the hour the plan is built from:
-     * classes and travel aside (the new arrangement has them again), kept as they were. A block
-     * running across that hour is kept whole, and the plan then starts where it ends.
+     * The blocks of today's arrangement that start before the hour the plan is built from, kept as
+     * they were (classes aside: they are in every arrangement). A block running across that hour is
+     * kept whole, and the plan then starts where it ends. The new arrangement is made around them.
      */
     private List<Block> keptBefore(Config cfg, LocalDate start) {
         int floor = cfg.dayFloor(start);
@@ -374,7 +370,7 @@ public class ChronosRepository {
         int floorSlot = (floor + com.chronos.engine.Slots.SLOT_MIN - 1) / com.chronos.engine.Slots.SLOT_MIN;
         List<Block> kept = new ArrayList<>();
         int end = floorSlot;
-        for (Block b : Codec.parseBlocks(old.blocks)) {
+        for (Block b : withoutRepeats(Codec.parseBlocks(old.blocks))) {
             if (b.start < 0 || b.start >= floorSlot || b.fixed || b.gap) continue;
             kept.add(b);
             end = Math.max(end, b.start + b.dur);
@@ -642,11 +638,44 @@ public class ChronosRepository {
         Map<String, Double> demand = allocationFor(bundle, date);
         if (cached != null && cached.snapshotId == bundle.snapshotId() && cached.seed == seed)
             return fromRow(cached, cfg, demand);
+        // Arranged again during the day it is: what it held before the hour it is built from stays.
+        return arrange(cfg, bundle, date, cached == null ? List.of() : keptIn(cached, cfg, date));
+    }
 
-        DaySequencer.Result r = DaySequencer.run(cfg.on(date), com.chronos.engine.Slots.dow(date), demand, seed,
-            bundle.cutsOn(date), isRestDay(date));
+    /**
+     * Arranges a day and keeps the result. [kept] is what the day already held before the hour it is
+     * built from (26 Oct 2026): the sequencer works around it and counts it — a commute already
+     * travelled, a lunch already eaten, goal work already given its hours — instead of laying a
+     * second plan over the first.
+     */
+    private DaySequencer.Result arrange(Config cfg, PlanBundle bundle, LocalDate date, List<Block> kept) {
+        long seed = seedFor(date, bundle.configHash());
+        // A stored block carries no output curve: goal work kept from the morning gets its activity's back
+        // (from the whole configuration — the day's own may no longer list it), or it would yield nothing.
+        for (Block k : kept)
+            for (Activity a : cfg.activities)
+                if (k.act == null && a.name != null && a.name.equals(k.name) && (k.goalId == null || k.goalId.equals(a.goalId))) {
+                    k.act = a;
+                    k.tab = com.chronos.engine.YieldCurve.table(a);
+                    k.qPlan = Math.max(0.05, a.q - cfg.params.lcbBeta * a.qSigma);
+                }
+        int floor = cfg.dayFloor(date);
+        int floorSlot = kept.isEmpty() ? 0 : (floor + com.chronos.engine.Slots.SLOT_MIN - 1) / com.chronos.engine.Slots.SLOT_MIN;
+        DaySequencer.Result r = DaySequencer.run(cfg.on(date), com.chronos.engine.Slots.dow(date), allocationFor(bundle, date),
+            seed, bundle.cutsOn(date), isRestDay(date), kept, floorSlot);
         store(date, bundle.snapshotId(), seed, r);
         return r;
+    }
+
+    /** The blocks of a stored arrangement of today that start before the hour the plan is built from. */
+    private List<Block> keptIn(DayPlanRow row, Config cfg, LocalDate date) {
+        int floor = cfg.dayFloor(date);
+        if (floor <= 0 || !date.equals(logicalToday())) return List.of();
+        int floorSlot = (floor + com.chronos.engine.Slots.SLOT_MIN - 1) / com.chronos.engine.Slots.SLOT_MIN;
+        List<Block> kept = new ArrayList<>();
+        for (Block b : withoutRepeats(Codec.parseBlocks(row.blocks)))
+            if (b.start >= 0 && b.start < floorSlot && !b.fixed && !b.gap) kept.add(b);
+        return kept;
     }
 
     /** What the horizon gave this date, or nothing if the date is outside it. */
@@ -682,7 +711,7 @@ public class ChronosRepository {
      *  placed blocks and the body-clock parameters, so they are re-simulated
      *  here, which is what keeps the day plot drawn after a restart. */
     private DaySequencer.Result fromRow(DayPlanRow row, Config cfg, Map<String, Double> demand) {
-        List<Block> blocks = Codec.parseBlocks(row.blocks);
+        List<Block> blocks = withoutRepeats(Codec.parseBlocks(row.blocks));
         List<Block> gaps = new ArrayList<>(), unplaced = new ArrayList<>();
         for (Block b : Codec.parseBlocks(row.gaps)) (b.start < 0 ? unplaced : gaps).add(b);
         Energy.Trace trace = Energy.simulate(blocks, cfg.params, Energy.homeostatic(cfg.params));
@@ -692,6 +721,23 @@ public class ChronosRepository {
                 trace.fatigue(), trace.physical(), trace.capacity(), trace.wastedRecoveryH(), trace.dopamine()),
             row.effectiveMinutes, row.elapsedMinutes, 0, 0, 0,
             undeliveredOf(blocks, demand));
+    }
+
+    /**
+     * A day stored before 26 Oct 2026 by a rebuild during the day can hold the morning twice over:
+     * the same leg of a trip or the same session on top of itself. The later copy is dropped when
+     * it is read; the stored row is left as it was.
+     */
+    static List<Block> withoutRepeats(List<Block> blocks) {
+        List<Block> out = new ArrayList<>();
+        for (Block b : blocks) {
+            boolean repeat = false;
+            for (Block o : out)
+                if (o.start >= 0 && b.start >= 0 && o.name != null && o.name.equals(b.name)
+                        && b.start < o.start + o.dur && o.start < b.start + b.dur) { repeat = true; break; }
+            if (!repeat) out.add(b);
+        }
+        return out;
     }
 
     /**

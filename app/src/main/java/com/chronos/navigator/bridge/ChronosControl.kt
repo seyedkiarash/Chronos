@@ -35,8 +35,11 @@ object ChronosControl {
 
     /** The planner as [ChangeSet.CHRONOS_SHAPE] describes it. */
     fun view(cfg: Config, rest: Set<LocalDate>, today: LocalDate): JsonObject = JsonObject().apply {
+        // What is past its deadline or done is left out: nothing about it is to be changed (26 Oct 2026).
+        val over = cfg.activities.filter { cfg.over(it, today) }
+        val overTargets = over.mapNotNull { it.goalId }.toSet()
         add("goals", JsonArray().apply {
-            cfg.goals.forEach { g ->
+            cfg.goals.filter { it.id !in overTargets }.forEach { g ->
                 add(JsonObject().apply {
                     addProperty("name", g.name)
                     g.groupName?.takeIf { it != g.name }?.let { addProperty("goal_it_belongs_to", it) }
@@ -53,7 +56,7 @@ object ChronosControl {
             }
         })
         add("activities", JsonArray().apply {
-            cfg.activities.forEach { a ->
+            cfg.activities.filter { it !in over }.forEach { a ->
                 add(JsonObject().apply {
                     addProperty("name", a.name)
                     addProperty("kind", if (a.kind == Enums.ActivityKind.GOAL) "goal" else if (a.leisure) "leisure" else "upkeep")
@@ -61,7 +64,10 @@ object ChronosControl {
                     a.goalId?.let { cfg.goal(it) }?.let { addProperty("goal", it.name) }
                     add("days", JsonArray().apply { a.days.forEach { add(it) } })
                     if (a.windows.isNotEmpty()) add("windows", JsonArray().apply {
-                        a.windows.forEach { w -> add(JsonObject().apply { addProperty("from", w.from); addProperty("to", w.to) }) }
+                        a.windows.forEach { w -> add(JsonObject().apply {
+                            addProperty("from", w.from); addProperty("to", w.to)
+                            w.days?.let { d -> add("days", JsonArray().apply { d.forEach { add(it) } }) }
+                        }) }
                     })
                     if (a.kind == Enums.ActivityKind.MAINTENANCE) a.minBlock?.let { addProperty("minutes", it) }
                     else { a.minBlock?.let { addProperty("min_block", it) }; a.maxBlock?.let { addProperty("max_block", it) } }
@@ -114,7 +120,8 @@ object ChronosControl {
         fun num(o: JsonObject, k: String) = o.get(k)?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asDouble
         fun days(o: JsonObject) = o.getAsJsonArray("days")?.map { it.asInt }?.toSortedSet()
         fun windows(o: JsonObject) = o.getAsJsonArray("windows")?.map {
-            Activity.Window(it.asJsonObject.get("from").asString, it.asJsonObject.get("to").asString)
+            Activity.Window(it.asJsonObject.get("from").asString, it.asJsonObject.get("to").asString,
+                it.asJsonObject.getAsJsonArray("days")?.map { d -> d.asInt })
         }
 
         for (op in ops.filter { it.isChronos && it.node() != null }) {
@@ -329,7 +336,8 @@ object ChronosControl {
             addProperty("to", today.toString())
             add("activities", JsonArray().apply {
                 sessions.groupBy { it.actId }.forEach { (id, ls) ->
-                    val a = cfg.activity(id) ?: return@forEach
+                    // Work whose deadline is behind it is not reviewed; its tiredness stays in the weekdays below.
+                    val a = cfg.activity(id)?.takeIf { !cfg.over(it, today) } ?: return@forEach
                     add(JsonObject().apply {
                         addProperty("name", a.name)
                         addProperty("kind", if (a.kind == Enums.ActivityKind.GOAL) "goal" else if (a.leisure) "leisure" else "upkeep")

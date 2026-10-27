@@ -19,7 +19,14 @@ public class Goal {
 
     public Double weeklyFloorH;    // open goals only
     public Double maxPerDayH;
-    public double weight = 0.0;    // derived from pairwise comparison, never typed in
+    public double weight = 0.0;    // derived from the level and the place (engine.Priorities), never typed in
+
+    /** Priority (26 Oct 2026): 0 critical, 1 important, 2 normal, 3 optional; null until placed. */
+    public Integer tier;
+    /** Place within the level, 0 first. */
+    public Integer rank;
+    /** Placed by the app and not yet confirmed by you. */
+    public boolean tierAuto;
 
     /**
      * The goal this belongs to, as you name it (your decision of 17 Oct 2026). What you call a goal is an
@@ -37,6 +44,7 @@ public class Goal {
         g.hoursPerUnit = hoursPerUnit; g.deadline = deadline;
         g.weeklyFloorH = weeklyFloorH; g.maxPerDayH = maxPerDayH; g.weight = weight;
         g.groupName = groupName; g.note = note; g.deadlineTime = deadlineTime;
+        g.tier = tier; g.rank = rank; g.tierAuto = tierAuto;
         return g;
     }
 

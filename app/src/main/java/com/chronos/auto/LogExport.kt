@@ -112,7 +112,7 @@ object LogExport {
     }
 
     private fun windows(list: List<Activity.Window>) =
-        JSONArray(list.map { w -> JSONObject().v("from", w.from).v("to", w.to) })
+        JSONArray(list.map { w -> JSONObject().v("from", w.from).v("to", w.to).also { o -> w.days?.let { o.v("days", days(it)) } } })
 
     private fun days(set: Collection<Int>) = JSONArray(set.sorted().map { Slots.DOW[it] })
 

@@ -1,5 +1,12 @@
 package com.chronos.ui
 
+import com.chronos.ui.common.*
+import com.chronos.ui.setup.*
+import com.chronos.ui.horizon.*
+import com.chronos.ui.day.*
+import com.chronos.ui.log.*
+import com.chronos.ui.navigator.*
+
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -93,7 +100,7 @@ fun ChronosApp(vm: ChronosViewModel = viewModel(), nav: NavigatorViewModel = vie
     // answer that unlocks the solver would throw them out of Setup.
     LaunchedEffect(vm.loading) { if (!vm.loading && vm.ready && tab == Tab.Setup) tab = Tab.Horizon }
     LaunchedEffect(vm.openTab) {
-        when (vm.openTab) { "log" -> tab = Tab.Log; "setup" -> tab = Tab.Setup }
+        when (vm.openTab) { "log" -> tab = Tab.Log; "setup" -> tab = Tab.Setup; "priorities" -> tab = Tab.Priorities }
         vm.openTab = null
     }
     LaunchedEffect(vm.message) {

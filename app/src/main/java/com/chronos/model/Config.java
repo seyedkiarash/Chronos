@@ -35,15 +35,25 @@ public class Config {
         boolean all = true;
         // An archived activity is not planned on any day, so it is left out even without a date.
         for (Activity a : activities)
-            if (!a.startedBy(date) || a.archived || hoursOn(a, date, floor) != null) { all = false; break; }
+            if (!a.startedBy(date) || a.archived || hoursOn(a, date, floor) != null || a.windowsByDay()) { all = false; break; }
         if (all) return this;
         Config c = new Config();
         c.params = params;
         c.goals = goals;
         c.commitments = commitments;
         c.planFrom = planFrom;
+        int dow = date == null ? -1 : com.chronos.engine.Slots.dow(date);
         for (Activity a : activities) {
             if (!a.startedBy(date) || a.archived) continue;
+            if (a.windowsByDay() && dow >= 0) {
+                // Hours of its own on this weekday: only the windows that hold today. With none, it is not planned today.
+                List<Activity.Window> today = a.windowsOn(dow);
+                if (today.isEmpty()) continue;
+                Activity b = a.copy();
+                b.windows.clear();
+                for (Activity.Window w : today) b.windows.add(new Activity.Window(w.from, w.to));
+                a = b;
+            }
             int[] span = hoursOn(a, date, floor);
             if (span == null) { c.activities.add(a); continue; }
             Activity narrowed = narrowed(a, span[0], span[1], date);
@@ -58,6 +68,20 @@ public class Config {
      * repository fills it in from the app's state.
      */
     public java.time.LocalDateTime planFrom;
+
+    /**
+     * Whether an activity's time is over on a day (26 Oct 2026): upkeep past its last day, goal work
+     * whose target's deadline has passed or whose amount is done. What the log says about it is no
+     * longer a reason to change anything; its sessions still say how the days that held them tired you.
+     */
+    public boolean over(Activity a, java.time.LocalDate day) {
+        if (a.endedBy(day)) return true;
+        if (a.kind != com.chronos.model.Enums.ActivityKind.GOAL) return false;
+        Goal g = goal(a.goalId);
+        if (g == null || g.mode != com.chronos.model.Enums.GoalMode.CLOSED) return false;
+        if (g.deadline != null && g.deadline.isBefore(day)) return true;
+        return g.totalUnits != null && g.totalUnits > 0 && g.remainingUnits() <= 0;
+    }
 
     /** The first minute of a date the plan may use: past the plan's start hour on its first day, else 0. */
     public int dayFloor(java.time.LocalDate date) {

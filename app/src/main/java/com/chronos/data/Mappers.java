@@ -53,6 +53,7 @@ public final class Mappers {
         g.hoursPerUnit = r.hoursPerUnit; g.deadline = date(r.deadline);
         g.weeklyFloorH = r.weeklyFloorH; g.maxPerDayH = r.maxPerDayH; g.weight = r.weight;
         g.groupName = r.groupName; g.note = r.note; g.deadlineTime = r.deadlineTime;
+        g.tier = r.tier; g.rank = r.rank; g.tierAuto = r.tierAuto;
         return g;
     }
 
@@ -65,6 +66,7 @@ public final class Mappers {
         r.hoursPerUnit = g.hoursPerUnit; r.deadline = date(g.deadline);
         r.weeklyFloorH = g.weeklyFloorH; r.maxPerDayH = g.maxPerDayH; r.weight = g.weight;
         r.groupName = g.groupName; r.note = g.note; r.deadlineTime = g.deadlineTime;
+        r.tier = g.tier; r.rank = g.rank; r.tierAuto = g.tierAuto;
         r.position = position;
         return r;
     }

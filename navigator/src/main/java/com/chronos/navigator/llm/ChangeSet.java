@@ -62,7 +62,7 @@ public final class ChangeSet {
     /** The snapshot of Chronos the app sends along, for the prompts to describe. */
     public static final String CHRONOS_SHAPE = String.join("\n",
         "`chronos` describes the student's planner as it is: goals (CLOSED ones have a deadline and units, OPEN ones a weekly floor),",
-        "activities (kind goal or upkeep; days are 0 = Saturday … 6 = Friday; windows are HH:mm spans it may occupy; archived ones are not planned).",
+        "activities (kind goal or upkeep; days are 0 = Saturday … 6 = Friday; windows are HH:mm spans it may occupy, a window with its own days holds on those weekdays only; archived ones are not planned).",
         "Each goal activity has its own target in `goals`, named after the activity; `goal_it_belongs_to` is the goal the student sees it under. edit_goal names a target by that name.",
         "levers (slack_ratio = share of free time never scheduled; f_safe / f_safe_p = mental / physical tiredness above which the planner penalises work, 0..1; bed / wake times),",
         "rest_days already chosen, and fixed commitments (classes) by weekday.");
@@ -79,7 +79,7 @@ public final class ChangeSet {
         "  {\"type\":\"move_deadline\",\"node\":\"ID\",\"new_deadline\":\"YYYY-MM-DD\"}   only the student's own, non-hard deadlines",
         "  {\"type\":\"discuss\",\"node\":\"ID\",\"topic\":\"…\"}   something to raise with whoever owns the node",
         "  {\"type\":\"add_activity\",\"name\":\"…\",\"kind\":\"upkeep|goal\",\"goal\":\"existing goal (kind goal)\",\"like\":\"existing activity or null\",",
-        "     \"days\":[0,1],\"windows\":[{\"from\":\"HH:mm\",\"to\":\"HH:mm\"}],\"minutes\":30,\"weekly_floor_h\":3,\"start_date\":\"YYYY-MM-DD or null\"}",
+        "     \"days\":[0,1],\"windows\":[{\"from\":\"HH:mm\",\"to\":\"HH:mm\",\"days\":[0,1] (optional: only those weekdays)}],\"minutes\":30,\"weekly_floor_h\":3,\"start_date\":\"YYYY-MM-DD or null\"}",
         "     goal work gets its own ongoing target of weekly_floor_h hours a week under that goal (for a piece of work with a deadline use add_task)",
         "  {\"type\":\"edit_activity\",\"activity\":\"…\",\"days\":[…],\"windows\":[…],\"min_block\":30,\"max_block\":90,\"minutes\":30}   any subset",
         "  {\"type\":\"pause_activity\",\"activity\":\"…\",\"from\":\"YYYY-MM-DD\",\"until\":\"YYYY-MM-DD\"}   a Chronos activity is not planned between the dates",
@@ -820,6 +820,18 @@ public final class ChangeSet {
                 JsonObject w = new JsonObject();
                 w.addProperty("from", hhmm(a));
                 w.addProperty("to", hhmm(b));
+                // Only on some weekdays (0 = Saturday): the hours that day has of its own.
+                JsonElement d = e.getAsJsonObject().get("days");
+                if (d != null && d.isJsonArray()) {
+                    JsonArray days = new JsonArray();
+                    for (JsonElement k : d.getAsJsonArray()) {
+                        if (!k.isJsonPrimitive() || !k.getAsJsonPrimitive().isNumber() || k.getAsInt() < 0 || k.getAsInt() > 6)
+                            return "a window's days are 0 (Saturday) to 6 (Friday)";
+                        days.add(k.getAsInt());
+                    }
+                    if (days.isEmpty()) return "a window's days are empty: leave days out for every day";
+                    w.add("days", days);
+                }
                 out.add(w);
             }
             if (!out.isEmpty()) what.add("windows", out);

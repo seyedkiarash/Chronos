@@ -127,7 +127,7 @@ Answer with exactly one JSON object and nothing else:
         }
         val llm = LlmSettings(context)
         val profile = llm.active ?: return fail("No model is set up")
-        val key = KeyVault.load(context, profile.id) ?: return fail("No API key for ${profile.label}")
+        if (!KeyVault.has(context, profile.id)) return fail("No API key for ${profile.label}")
         val repo = DatabaseWiring.repository(context)
         val cfg = repo.loadConfig()
         val day = LocalDate.parse(d.day)
@@ -139,7 +139,7 @@ Answer with exactly one JSON object and nothing else:
         val inbox = NavProposals(DatabaseWiring.navigator(context).dao())
         val call = inbox.queue("QUICK_LOG|" + d.id, "quick_log@" + profile.id, profile.label + " · " + profile.model)
         call.status = "SENT"; inbox.put(call)
-        val reply = try { LlmClient.send(profile, key, req) } catch (e: Exception) {
+        val reply = try { NavAsk.patiently { LlmClient.sendAnyKey(context, profile, req) } } catch (e: Exception) {
             call.status = "FAILED"; call.error = e.message ?: e.javaClass.simpleName; call.doneAt = System.currentTimeMillis(); inbox.put(call)
             return fail(call.error ?: "no answer")
         }

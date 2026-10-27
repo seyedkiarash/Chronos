@@ -3,8 +3,8 @@ package com.chronos.harness;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.chronos.ui.Lang;
-import com.chronos.ui.StringsKt;
+import com.chronos.ui.common.Lang;
+import com.chronos.ui.common.StringsKt;
 
 import org.junit.Test;
 

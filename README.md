@@ -42,9 +42,11 @@ Tests (the planning engine and the Navigator are plain Java and run on the JVM):
 - `app/src/main/java/com/chronos/engine`: the planner — horizon, day sequencer, energy model,
   learning (`Calibrator`), feasibility, leisure and patterns in the log (`Habits`).
 - `app/src/main/java/com/chronos/data`: Room database, migrations and the repository.
-- `app/src/main/java/com/chronos/ui`: Jetpack Compose screens.
+- `app/src/main/java/com/chronos/ui`: Jetpack Compose screens, one sub-package per task (setup, horizon, day, log, navigator, common).
 - `navigator/`: the goal graph, its estimation, forecasting and allocation, and the LLM layer
   (prompts, checks of every proposed change). Its test graph is a made-up sample.
+
+The full map, by what you do with the app, is in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Licence
 

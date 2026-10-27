@@ -121,6 +121,17 @@ public class HabitsTest {
     }
 
     @Test
+    public void workPastItsDeadlineIsNotReviewed() {
+        Config cfg = ParityHarness.build(TODAY);
+        cfg.goal("courses").deadline = TODAY.minusDays(1);
+        List<LogEntry> logs = new ArrayList<>();
+        for (int i = 1; i <= 5; i++) logs.add(done("coursework", TODAY.minusDays(i + 1), "15:00", 150));
+        assertTrue(Habits.find(cfg, logs, TODAY).stream().noneMatch(f -> f.subject().equals(cfg.activity("coursework").name)));
+        cfg.goal("courses").deadline = TODAY.plusDays(3);
+        assertNotNull(of(Habits.find(cfg, logs, TODAY), cfg.activity("coursework").name, "length"));
+    }
+
+    @Test
     public void inPersianTheReasonIsInPersian() {
         Config cfg = ParityHarness.build(TODAY);
         List<LogEntry> logs = new ArrayList<>();

@@ -135,14 +135,14 @@ object NavAsk {
         val llm = LlmSettings(context)
         val g = store.load() ?: throw IllegalStateException("Import the goal graph first.")
         val profile = llm.active ?: throw IllegalStateException("Set up a provider in the LLM panel first.")
-        val key = KeyVault.load(context, profile.id)
-            ?: throw IllegalStateException("Add the API key for ${profile.label} in the LLM panel first.")
+        if (!KeyVault.has(context, profile.id))
+            throw IllegalStateException("Add the API key for ${profile.label} in the LLM panel first.")
         val req = LlmClient.adapt(profile, build(context, g, task))
         refusal(context, profile, req)?.let { throw IllegalStateException(it) }
         val inbox = NavProposals(store.dao())
         val call = inbox.queue(task, triggerOf(task) + "@" + profile.id, profile.label + " · " + profile.model)
         if (!LlmClient.online(context)) return "No network: the question is queued and will be sent when you are online."
-        return send(context, profile, key, call, req, g)
+        return send(context, profile, call, req, g)
     }
 
     /** A trigger fired: the question is queued (once) and goes out with the rest of the queue. */
@@ -165,22 +165,32 @@ object NavAsk {
         val queued = inbox.queued()
         if (queued.isEmpty() || !LlmClient.online(context)) return null
         val profile = LlmSettings(context).active ?: return null
-        val key = KeyVault.load(context, profile.id) ?: return null
+        if (!KeyVault.has(context, profile.id)) return null
+        // With several keys, several questions go out at once, each on its own key (27 Oct 2026).
+        val lanes = KeyVault.keys(context, profile.id).size.coerceIn(1, 3)
         var said: String? = null
-        for (call in queued) {
-            val g = store.load() ?: return said
+        var stop: String? = null
+        fun one(call: NavEntities.LlmCallRow) {
+            if (stop != null) return
+            val g = store.load() ?: return
             val req = try {
                 LlmClient.adapt(profile, build(context, g, call.task ?: ""))
             } catch (e: Exception) {
-                call.status = "FAILED"; call.error = "The question no longer applies: ${e.message}"; inbox.put(call); continue
+                call.status = "FAILED"; call.error = "The question no longer applies: ${e.message}"; inbox.put(call); return
             }
-            refusal(context, profile, req)?.let { return it }
-            said = send(context, profile, key, call, req, g)
+            synchronized(this) { refusal(context, profile, req)?.let { stop = it; return } }
+            send(context, profile, call, req, g).let { synchronized(this) { said = it } }
         }
-        return said
+        if (lanes == 1) queued.forEach { one(it) }
+        else {
+            val pool = java.util.concurrent.Executors.newFixedThreadPool(lanes)
+            try { pool.invokeAll(queued.map { c -> java.util.concurrent.Callable { runCatching { one(c) } } }) }
+            finally { pool.shutdown() }
+        }
+        return stop ?: said
     }
 
-    private fun send(context: Context, profile: Profile, key: String, call: NavEntities.LlmCallRow,
+    private fun send(context: Context, profile: Profile, call: NavEntities.LlmCallRow,
                      req: LlmRequest, g: Graph): String {
         val inbox = NavProposals(DatabaseWiring.navigator(context).dao())
         call.status = "SENT"
@@ -191,7 +201,7 @@ object NavAsk {
         inbox.put(call)
         val said: String
         try {
-            val reply = LlmClient.send(profile, key, req)
+            val reply = patiently { LlmClient.sendAnyKey(context, profile, req) }
             call.model = profile.label + " · " + reply.model
             call.tokensIn = reply.tokensIn.toInt()
             call.tokensOut = reply.tokensOut.toInt()
@@ -261,29 +271,10 @@ object NavAsk {
         val g = store.load() ?: throw IllegalStateException("Import the goal graph first.")
         val llm = LlmSettings(context)
         val profile = llm.active ?: throw IllegalStateException("Set up a provider in the LLM panel first.")
-        val key = KeyVault.load(context, profile.id)
-            ?: throw IllegalStateException("Add the API key for ${profile.label} in the LLM panel first.")
         if (!LlmClient.online(context)) throw IllegalStateException("No network: a conversation needs it.")
-        val original = LlmClient.adapt(profile, build(context, g, origin.task ?: ""))
+        val original = build(context, g, origin.task ?: "")
         val req = com.chronos.navigator.llm.Discuss.request(original, describe(v), v.thread(), message)
-        refusal(context, profile, req)?.let { throw IllegalStateException(it) }
-
-        val call = inbox.queue("DISCUSS|" + proposalId, "discussion@" + profile.id, profile.label + " · " + profile.model)
-        call.status = "SENT"
-        inbox.put(call)
-        val reply = try {
-            LlmClient.send(profile, key, req)
-        } catch (e: Exception) {
-            call.status = "FAILED"; call.error = e.message ?: e.javaClass.simpleName; call.doneAt = System.currentTimeMillis()
-            inbox.put(call)
-            throw IllegalStateException("${profile.label} did not answer: ${call.error}")
-        }
-        call.model = profile.label + " · " + reply.model
-        call.tokensIn = reply.tokensIn.toInt(); call.tokensOut = reply.tokensOut.toInt()
-        call.costUsd = LlmClient.costUsd(profile, reply)
-        call.doneAt = System.currentTimeMillis()
-        call.status = "DONE"
-        inbox.put(call)
+        val (call, reply) = sendSure(context, profile, req, "DISCUSS|" + proposalId, "discussion")
 
         val answer = com.chronos.navigator.llm.Discuss.read(reply.text)
             ?: throw IllegalStateException("The model's answer could not be read.")
@@ -310,6 +301,71 @@ object NavAsk {
         ok.forEach { inbox.file(call.id, original, it, v.id(), v.version() + 1, turns) }
         inbox.markRevised(v.id())
         return "The model revised its proposal: version ${v.version() + 1} is waiting."
+    }
+
+    /** A failure that passes by itself: the network, a busy provider, a limit for the minute. */
+    fun passing(err: String) = Regex("HTTP (408|429|50[0-9])|timed? ?out|connection (abort|reset|refused|closed)|" +
+        "unexpected end|unable to resolve host|failed to connect|no network|network is unreachable|resting after a limit|" +
+        "software caused|stream was reset|cut off", RegexOption.IGNORE_CASE).containsMatchIn(err)
+
+    /** Up to three tries of one send, waiting 5 and then 20 seconds after a failure that passes. */
+    fun <T> patiently(send: () -> T): T {
+        var last: Exception? = null
+        for (attempt in 0 until 3) {
+            if (attempt > 0) Thread.sleep(if (attempt == 1) 5_000L else 20_000L)
+            try { return send() } catch (e: Exception) {
+                last = e
+                if (!passing(e.message ?: "")) throw e
+            }
+        }
+        throw last!!
+    }
+
+    /**
+     * One message sent until a model has answered it whole (your request of 27 Oct 2026: two of yours were
+     * refused and lost). The provider in use first, then every other one set up with a key and a model; each
+     * with every key it has ([LlmClient.sendAnyKey]); a busy provider or a dropped connection tried again
+     * after a pause; an answer cut off, empty or declined counts as none. Each attempt is recorded as a call.
+     * Throws, with every reason, only when none answered.
+     */
+    fun sendSure(context: Context, first: Profile, req: LlmRequest, task: String, trigger: String):
+            Pair<NavEntities.LlmCallRow, LlmClient.Reply> {
+        val inbox = NavProposals(DatabaseWiring.navigator(context).dao())
+        val llm = LlmSettings(context)
+        val order = (listOf(first) + llm.profiles.filter { it.id != first.id })
+            .filter { it.model.isNotBlank() && KeyVault.has(context, it.id) }
+        if (order.isEmpty()) throw IllegalStateException("Add the API key for ${first.label} in the LLM panel first.")
+        val why = mutableListOf<String>()
+        for (p in order) {
+            val asked = LlmClient.adapt(p, req)
+            refusal(context, p, asked)?.let { why += it; continue }
+            val call = inbox.queue(task, "$trigger@${p.id}", p.label + " · " + p.model)
+            call.status = "SENT"
+            call.requestHash = MessageDigest.getInstance("SHA-256")
+                .digest((asked.system() + "\n" + asked.user()).toByteArray()).joinToString("") { "%02x".format(it) }
+            inbox.put(call)
+            try {
+                val reply = patiently { LlmClient.sendAnyKey(context, p, asked) }
+                call.model = p.label + " · " + reply.model
+                call.tokensIn = reply.tokensIn.toInt(); call.tokensOut = reply.tokensOut.toInt()
+                call.costUsd = LlmClient.costUsd(p, reply)
+                call.doneAt = System.currentTimeMillis()
+                val bad = when {
+                    reply.stopReason == "refusal" -> "the model declined to answer"
+                    reply.text.isBlank() -> "an empty answer"
+                    LlmClient.cutOff(reply) -> "the answer was cut off"
+                    else -> null
+                }
+                if (bad == null) { call.status = "DONE"; inbox.put(call); return call to reply }
+                call.status = "FAILED"; call.error = bad; inbox.put(call)
+                why += "${p.label}: $bad"
+            } catch (e: Exception) {
+                call.status = "FAILED"; call.error = e.message ?: e.javaClass.simpleName; call.doneAt = System.currentTimeMillis()
+                inbox.put(call)
+                why += "${p.label}: ${call.error}"
+            }
+        }
+        throw IllegalStateException(why.distinct().joinToString("\n"))
     }
 
     /** A filed proposal in words, for the model to see what it said before. */

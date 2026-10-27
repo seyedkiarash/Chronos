@@ -168,6 +168,12 @@ public final class Readiness {
             if (a.windows.isEmpty())
                 out.add(new Issue(Severity.BLOCKING, where, id,
                     a.name + ": no allowed hours are set"));
+            // Hours of its own per weekday (27 Oct 2026): a day it may happen with no window is a day it is not planned.
+            if (a.windowsByDay())
+                for (int d : a.days)
+                    if (a.windowsOn(d).isEmpty() && a.pins.stream().noneMatch(p -> p.day == d))
+                        out.add(new Issue(Severity.WARNING, where, id,
+                            a.name + ": on " + Slots.DOW[d] + " none of its windows holds, so it is not planned that day"));
             if (a.minBlock != null && a.maxBlock != null && a.maxBlock < a.minBlock)
                 out.add(new Issue(Severity.BLOCKING, where, id,
                     a.name + ": longest block is shorter than the shortest"));

@@ -52,12 +52,17 @@ public final class Codec {
         return out;
     }
 
-    // ---- windows: "08:00-12:30;14:00-19:30" ------------------------------
+    // ---- windows: "08:00-12:30;14:00-19:30@0,1,2" (after @, the weekdays it holds on) ----
     public static String windows(List<Activity.Window> windows) {
         StringBuilder sb = new StringBuilder();
         for (Activity.Window w : windows) {
             if (sb.length() > 0) sb.append(';');
             sb.append(w.from).append('-').append(w.to);
+            if (w.days != null) {
+                sb.append('@');
+                boolean first = true;
+                for (int d : w.days) { if (!first) sb.append(','); sb.append(d); first = false; }
+            }
         }
         return sb.toString();
     }
@@ -66,8 +71,15 @@ public final class Codec {
         List<Activity.Window> out = new ArrayList<>();
         if (s == null || s.isBlank()) return out;
         for (String part : s.split(";")) {
-            String[] ab = part.split("-");
-            if (ab.length == 2) out.add(new Activity.Window(ab[0].trim(), ab[1].trim()));
+            String[] at = part.split("@", 2);
+            String[] ab = at[0].split("-");
+            if (ab.length != 2) continue;
+            Activity.Window w = new Activity.Window(ab[0].trim(), ab[1].trim());
+            if (at.length == 2) {
+                w.days = new java.util.TreeSet<>();
+                for (String d : at[1].split(",")) if (!d.isBlank()) w.days.add(Integer.parseInt(d.trim()));
+            }
+            out.add(w);
         }
         return out;
     }

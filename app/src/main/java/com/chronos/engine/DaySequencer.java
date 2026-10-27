@@ -69,7 +69,19 @@ public final class DaySequencer {
     /** A rest day: rest-only upkeep is planned; on any other day it is not. */
     private final boolean restDay;
 
-    private DaySequencer(Config cfg, int dow, long seed, Map<String, Double> cut, boolean restDay) {
+    /**
+     * What today already held before the hour it was built again from (26 Oct 2026). Without it the new
+     * arrangement did the morning over: a second commute on top of the first, a second lunch, the
+     * morning's goal work again in the afternoon — two plans side by side in one day.
+     */
+    private final List<Block> keptBlocks;
+    /** Slots before the hour the day is built from: nothing new goes there. */
+    private final int floorSlot;
+
+    private DaySequencer(Config cfg, int dow, long seed, Map<String, Double> cut, boolean restDay,
+                         List<Block> kept, int floorSlot) {
+        this.keptBlocks = new ArrayList<>();
+        this.floorSlot = Math.max(0, Math.min(floorSlot, PER_DAY));
         this.restDay = restDay;
         this.cut = cut == null ? Map.of() : cut;
         this.cfg = cfg;
@@ -88,6 +100,16 @@ public final class DaySequencer {
         for (int t = 0; t < PER_DAY; t++) taken[t] = occupant[t] != null;
         for (Block b : frame.items())
             for (int t = b.start; t < b.start + b.dur; t++) taken[Slots.wrap(t)] = true;
+        for (Block k : kept == null ? List.<Block>of() : kept) {
+            if (k.start < 0 || k.fixed || k.gap) continue;     // classes are in the frame already
+            Block c = k.copy();
+            c.kept = true;
+
+            keptBlocks.add(c);
+            placed.add(c);
+            for (int t = c.start; t < c.start + c.dur; t++) taken[Slots.wrap(t)] = true;
+        }
+        for (int t = 0; t < this.floorSlot; t++) taken[t] = true;
     }
 
     /**
@@ -108,7 +130,36 @@ public final class DaySequencer {
     /** @param restDay goal work is not asked for; rest-only activities join the upkeep. */
     public static Result run(Config cfg, int dow, Map<String, Double> demandHours, long seed,
                              Map<String, Double> cut, boolean restDay) {
-        return new DaySequencer(cfg, dow, seed, cut, restDay).sequence(restDay ? Map.of() : demandHours);
+        return run(cfg, dow, demandHours, seed, cut, restDay, List.of(), 0);
+    }
+
+    /**
+     * @param kept      blocks the day already held before [floorSlot]: they stay, count as sessions
+     *                  of their upkeep, legs of their trips and hours of their goals
+     * @param floorSlot the slot the day is built from; nothing new is placed before it
+     */
+    public static Result run(Config cfg, int dow, Map<String, Double> demandHours, long seed,
+                             Map<String, Double> cut, boolean restDay, List<Block> kept, int floorSlot) {
+        DaySequencer s = new DaySequencer(cfg, dow, seed, cut, restDay, kept, floorSlot);
+        return s.sequence(restDay ? Map.of() : s.lessKept(demandHours));
+    }
+
+    /** Today's hours of each goal less what the kept part of the day already gave it. */
+    private Map<String, Double> lessKept(Map<String, Double> demand) {
+        if (keptBlocks.isEmpty()) return demand;
+        Map<String, Double> out = new HashMap<>(demand);
+        for (Block k : keptBlocks)
+            if (k.goalId != null && out.containsKey(k.goalId))
+                out.put(k.goalId, Math.max(0, out.get(k.goalId) - k.dur * SLOT_MIN / 60.0));
+        return out;
+    }
+
+    /** Kept blocks of this name: sessions of an upkeep, or a leg of a trip, already there today. */
+    private int keptNamed(String name) {
+        if (name == null) return 0;
+        int n = 0;
+        for (Block k : keptBlocks) if (k.name != null && k.name.trim().equals(name.trim())) n++;
+        return n;
     }
 
     private List<Block> live() {
@@ -226,7 +277,7 @@ public final class DaySequencer {
         List<Block> evicted = new ArrayList<>();
         for (Block o : placed) {
             boolean overlaps = o.start >= 0 && o.start < st + b.dur && st < o.start + o.dur;
-            boolean movable = !o.fixed && !o.away;
+            boolean movable = !o.fixed && !o.away && !o.kept;
             if (overlaps && movable) { evicted.add(o); continue; }
             kept.add(o);
         }
@@ -289,7 +340,7 @@ public final class DaySequencer {
     private void rebuildTaken() {
         taken = new boolean[PER_DAY];
         heldFor = new String[PER_DAY];
-        for (int t = 0; t < PER_DAY; t++) taken[t] = occupant[t] != null;
+        for (int t = 0; t < PER_DAY; t++) taken[t] = occupant[t] != null || t < floorSlot;
         for (Block o : placed) {
             if (o.start < 0) continue;
             for (int t = o.start; t < o.start + o.dur; t++) taken[Slots.wrap(t)] = true;
@@ -311,7 +362,7 @@ public final class DaySequencer {
             if (m.start >= 0 || m.priority < 1e5 || m.goalId != null) continue;
             boolean[] mask = maskOf(m.windows);
             for (Block o : new ArrayList<>(placed)) {
-                if (o.start < 0 || o.fixed || o.away || o.forced || o.pinned != null || o.priority < 1e5) continue;
+                if (o.start < 0 || o.fixed || o.kept || o.away || o.forced || o.pinned != null || o.priority < 1e5) continue;
                 boolean inTheWay = false;
                 for (int t = Math.max(0, o.start - o.changeover); t < o.start + o.dur && t < PER_DAY; t++)
                     if (mask[t]) inTheWay = true;
@@ -525,6 +576,9 @@ public final class DaySequencer {
             if (a.kind != ActivityKind.MAINTENANCE || !a.days.contains(dow)) continue;
             if (a.restOnly && !restDay) continue;
             if (a.leisure) continue;            // chosen for the rests, below, never planned on its own
+            int done = keptNamed(a.name);
+            if (done >= Math.max(1, a.maxBlocks)) continue;  // its sessions today are already behind you
+            if (done > 0) { a = a.copy(); a.maxBlocks = Math.max(1, a.maxBlocks) - done; }
             if (cut.containsKey(a.id)) {
                 int kept = Sacrifice.upkeepMinutes(a, cut);
                 warnings.add(kept <= 0
@@ -594,12 +648,12 @@ public final class DaySequencer {
             if (c.kind != CommitmentKind.VARIABLE) continue;
             int dur = FixedFrame.tripSlots(c);
 
-            leg(c, c.outbound, c.name + " (out)", dur, first - dur,
+            if (keptNamed(c.name + " (out)") == 0) leg(c, c.outbound, c.name + " (out)", dur, first - dur,
                 st -> st + dur <= first,
                 "To be there by " + Slots.format(first) + " you would have to leave at {start}, "
                 + "which is earlier than you meant to be up.");
 
-            leg(c, c.inbound, c.name + " (back)", dur, last,
+            if (keptNamed(c.name + " (back)") == 0) leg(c, c.inbound, c.name + " (back)", dur, last,
                 st -> st >= last,
                 "You are out until " + Slots.format(last) + ", so you do not get home until {end}. "
                 + "Shorten the last thing you do away from home, or accept the late finish.");
@@ -780,7 +834,7 @@ public final class DaySequencer {
         for (int iter = 0; iter < 260; iter++) {
             List<Block> pool = new ArrayList<>();
             for (Block b : placed)
-                if (!b.fixed && b.start >= 0 && b.pinned == null && !b.away && !b.forced) pool.add(b);
+                if (!b.fixed && !b.kept && b.start >= 0 && b.pinned == null && !b.away && !b.forced) pool.add(b);
             if (pool.isEmpty()) return;
 
             Block b = pool.get(rng.nextInt(pool.size()));
@@ -852,7 +906,9 @@ public final class DaySequencer {
     /** Sessions of a leisure activity already placed today. */
     private int sessionsOf(Activity a) {
         int n = 0;
-        for (Block b : placed) if (b.start >= 0 && b.leisure && b.act != null && a.id.equals(b.act.id)) n++;
+        for (Block b : placed)
+            if (b.start >= 0 && b.leisure && (b.act != null ? a.id.equals(b.act.id) : b.kept && a.name != null
+                    && b.name != null && a.name.trim().equals(b.name.trim()))) n++;
         return n;
     }
 
@@ -989,14 +1045,14 @@ public final class DaySequencer {
                 boolean touches = later ? o.start - o.changeover <= edge.start + edge.dur && o.start >= edge.start + edge.dur
                                         : o.start + o.dur >= edge.start - edge.changeover && o.start + o.dur <= edge.start;
                 if (!touches) continue;
-                if (o.fixed || o.pinned != null || o.away || o.forced) return null;
+                if (o.fixed || o.kept || o.pinned != null || o.away || o.forced) return null;
                 out.add(o);
                 edge = o;
                 grew = true;
                 break;
             }
         }
-        for (Block b : out) if (b.fixed || b.pinned != null || b.away || b.forced) return null;
+        for (Block b : out) if (b.fixed || b.kept || b.pinned != null || b.away || b.forced) return null;
         return out;
     }
 
@@ -1065,7 +1121,7 @@ public final class DaySequencer {
      * by it. The pause is filled later like any other free time, or is the meal itself.
      */
     private boolean relocate(Block second, Block first, int need) {
-        if (second.fixed || second.pinned != null || second.away || second.forced) return false;
+        if (second.fixed || second.kept || second.pinned != null || second.away || second.forced) return false;
         double before = scoreNow();
         placed.remove(second);
         rebuildTaken();
@@ -1119,7 +1175,7 @@ public final class DaySequencer {
         List<Block> gaps = new ArrayList<>();
         int t = 0;
         while (t < PER_DAY) {
-            if (filled[t] || Energy.isAsleep(t, s0, s1)) { t++; continue; }
+            if (filled[t] || t < floorSlot || Energy.isAsleep(t, s0, s1)) { t++; continue; }
             int end = t;
             while (end < PER_DAY && !filled[end] && !Energy.isAsleep(end, s0, s1)) end++;
             int len = end - t;

@@ -110,6 +110,27 @@ public final class Umbrellas {
         return r == Math.rint(r) ? Long.toString((long) r) : Double.toString(r);
     }
 
+    /**
+     * Goal work moved to another goal (your request of 27 Oct 2026). Its target was set for the goal it
+     * served, so what belongs to it there — the kind of target, amount and what is done of it, unit, hours
+     * per unit, deadline, weekly floor, daily ceiling, whether it is hard, and its priority — starts again
+     * empty, as for new work, for you to enter for the new goal; Setup holds the planner until you do.
+     * The activity keeps everything of its own: days, hours, lengths, loads, its log and what was learned.
+     *
+     * @return whether it moved (false when it already serves that goal)
+     */
+    public static boolean move(Goal t, String group) {
+        String from = t.groupName == null ? t.name : t.groupName;
+        if (group == null || group.isBlank() || group.equals(from)) return false;
+        t.groupName = group;
+        t.note = "Moved from \"" + from + "\": enter its target again for this goal.";
+        t.mode = GoalMode.CLOSED; t.hard = true;
+        t.totalUnits = null; t.doneUnits = 0.0; t.unit = null; t.hoursPerUnit = null;
+        t.deadline = null; t.deadlineTime = null; t.weeklyFloorH = null; t.maxPerDayH = null;
+        t.tier = null; t.rank = null; t.tierAuto = false;
+        return true;
+    }
+
     /** The goals as you see them: each group's name and its targets, in the order they come. */
     public static Map<String, List<Goal>> groups(Config cfg) {
         Map<String, List<Goal>> out = new LinkedHashMap<>();

@@ -51,6 +51,9 @@ public final class Entities {
         public String groupName, note;
         /** v14: "HH:MM" on the deadline day. */
         public String deadlineTime;
+        /** v16: priority level and place within it; whether the app chose them. */
+        public Integer tier, rank;
+        public boolean tierAuto;
     }
 
     @Entity(tableName = "activities")

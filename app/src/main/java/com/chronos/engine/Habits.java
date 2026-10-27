@@ -59,7 +59,8 @@ public final class Habits {
             if (l.date != null && !l.date.isBefore(from) && !l.date.isAfter(today)) recent.add(l);
         List<Finding> out = new ArrayList<>();
         for (Activity a : cfg.activities) {
-            if (a.archived || a.nap || a.endedBy(today) || a.name == null) continue;
+            // Past its deadline, done, or its period over: nothing to change about it (26 Oct 2026).
+            if (a.archived || a.nap || cfg.over(a, today) || a.name == null) continue;
             List<LogEntry> mine = new ArrayList<>();
             for (LogEntry l : recent)
                 if (l.kind == LogKind.SESSION && a.id.equals(l.actId) && l.at != null && l.actual != null && l.actual > 0) mine.add(l);
@@ -96,7 +97,8 @@ public final class Habits {
 
     /** Sessions mostly outside the allowed hours: the hours where you actually do it join the windows. */
     static Finding times(Activity a, List<LogEntry> mine) {
-        if (a.windows.isEmpty() || mine.size() < LEAST_SESSIONS) return null;
+        // Hours set apart for each weekday are left as you set them: one window for all days would undo them.
+        if (a.windows.isEmpty() || a.windowsByDay() || mine.size() < LEAST_SESSIONS) return null;
         List<int[]> outside = new ArrayList<>();
         for (LogEntry l : mine) {
             int s = minutes(l.at), e = s + l.actual;
@@ -127,7 +129,7 @@ public final class Habits {
 
     /** Goal work clearly sharper in one part of the day: the weaker part leaves its windows, if enough room stays. */
     static Finding focus(Activity a, List<LogEntry> mine) {
-        if (a.kind != ActivityKind.GOAL || a.windows.isEmpty()) return null;
+        if (a.kind != ActivityKind.GOAL || a.windows.isEmpty() || a.windowsByDay()) return null;
         int[][] parts = {{0, 720}, {720, 1020}, {1020, 1440}};
         String[] names = FA.get() ? new String[]{"صبح", "بعدازظهر", "عصر و شب"} : new String[]{"morning", "afternoon", "evening"};
         double[] sum = new double[3];

@@ -121,6 +121,15 @@ public final class DatabaseWiring {
 
     /** Two kinds of fatigue: physical beside mental. New columns only; the values are filled in by the app. */
     /** v14: hours as well as dates — an activity's start, a goal's deadline, the plan's start — and an activity's last day. */
+    /** v16: priorities as levels and an order (your choice of 26 Oct 2026). */
+    static final Migration MIGRATION_15_16 = new Migration(15, 16) {
+        @Override public void migrate(SupportSQLiteDatabase db) {
+            db.execSQL("ALTER TABLE goals ADD COLUMN tier INTEGER");
+            db.execSQL("ALTER TABLE goals ADD COLUMN rank INTEGER");
+            db.execSQL("ALTER TABLE goals ADD COLUMN tierAuto INTEGER NOT NULL DEFAULT 0");
+        }
+    };
+
     /** v15: leisure and its stimulation (your request of 25 Oct 2026). */
     static final Migration MIGRATION_14_15 = new Migration(14, 15) {
         @Override public void migrate(SupportSQLiteDatabase db) {
@@ -192,7 +201,7 @@ public final class DatabaseWiring {
                         // logged sessions to a schema bump would destroy the
                         // only thing the model learns from.
                         .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
-                            MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15)
+                            MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16)
                         .build();
                     repo = new ChronosRepository(db);
                 }
