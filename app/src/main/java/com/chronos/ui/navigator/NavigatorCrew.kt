@@ -82,8 +82,20 @@ internal fun CrewPanel(nav: NavigatorViewModel, compact: Boolean = false) {
             TextButton(onClick = { nav.page = NavPage.SETTINGS }) { Text(tr("Open Settings") + " ›") }
             return@Panel
         }
+        // Each question its own conversation (your request of 28 Oct 2026): which one is open, a new one, the others.
+        val open = nav.chats.firstOrNull { it.id == nav.chatId }
+        val idle = open != null && !open.fromApp && System.currentTimeMillis() - open.lastAt > 12 * 3_600_000L
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(if (open == null) tr("New conversation") else tr(open.title), style = MaterialTheme.typography.labelMedium,
+                color = Palette.Indigo, maxLines = 1, modifier = Modifier.weight(1f))
+            if (open != null) TextButton(onClick = { nav.newChat() }, enabled = !nav.busy) { Text("New") }
+            if (nav.chats.isNotEmpty())
+                TextButton(onClick = { nav.page = NavPage.CHATS }) { Text(tr("All") + " (" + nav.chats.size + ") ›") }
+        }
+        if (open?.fromApp == true) Hint("What the app sent by itself: weekly reviews and readings of your log. A message you write here starts a conversation of its own.")
+        else if (idle) Hint("This conversation has been quiet for half a day: your next message starts a new one. It stays under All.")
         // On the home the last few turns; the whole conversation on its own page.
-        val turns = nav.chat.takeLast(if (compact) 3 else 60)
+        val turns = nav.chat.takeLast(if (compact) 3 else 400)
         if (nav.chat.size > turns.size)
             TextButton(onClick = { nav.page = NavPage.CHAT }) {
                 Text(tr("Full conversation") + " (" + nav.chat.size + ") ›")
@@ -92,7 +104,7 @@ internal fun CrewPanel(nav: NavigatorViewModel, compact: Boolean = false) {
         val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
         turns.forEach { t ->
             if (t.proposalId != null && t.who != "you") PackageCard(nav, t.proposalId, t.text)
-            else Bubble(t.text, mine = t.who == "you")
+            else Bubble(if (t.who == "you") t.text else com.chronos.navigator.llm.client.CrewRun.readable(t.text), mine = t.who == "you")
             // A message that did not go stays, with why and what you can do with it.
             t.failed?.let { why ->
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.End) {
@@ -145,7 +157,39 @@ internal fun CrewPanel(nav: NavigatorViewModel, compact: Boolean = false) {
         if (!nav.relayMode)
             Hint(tr("Free requests left today") + ": " + nav.freeLeft + " / " + nav.freeCap + "  ·  " +
                  tr("a message takes about 3 to 6, a weekly review 4 to 6."))
-        if (nav.chat.isNotEmpty()) TextButton(onClick = { nav.clearChat() }) { Text("Clear the conversation") }
+        if (nav.chat.isNotEmpty() && !compact) {
+            var sure by remember(nav.chatId) { mutableStateOf(false) }
+            TextButton(onClick = { sure = !sure }) { Text("Delete this conversation", color = Palette.Brick) }
+            if (sure) Row(verticalAlignment = Alignment.CenterVertically) {
+                Hint("Only this conversation; its packages stay in the inbox.")
+                TextButton(onClick = { nav.deleteChat(); sure = false }) { Text("Delete", color = Palette.Brick) }
+            }
+        }
+    }
+}
+
+/** Every conversation, the latest first: open one to read it again or go on with it (28 Oct 2026). */
+@Composable
+internal fun ChatsPanel(nav: NavigatorViewModel) {
+    Panel("Conversations", Palette.Indigo) {
+        Hint("Each question you start is a conversation of its own; the model answering sees only that one. " +
+             "Open one to read it again, or to go on with it.")
+        OutlinedButton(onClick = { nav.newChat(); nav.page = NavPage.CHAT }, enabled = !nav.busy) { Text("New conversation") }
+        if (nav.chats.isEmpty()) Hint("Nothing said yet.")
+        nav.chats.forEach { c ->
+            Row(Modifier.fillMaxWidth().clickable { nav.openChat(c.id) }.padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(tr(c.title), style = MaterialTheme.typography.bodyMedium, maxLines = 2,
+                        color = if (c.id == nav.chatId) Palette.Indigo else MaterialTheme.colorScheme.onSurface)
+                    val day = java.time.Instant.ofEpochMilli(c.lastAt).atZone(java.time.ZoneId.systemDefault())
+                    Hint(dateText(day.toLocalDate()) + "  " + "%02d:%02d".format(day.hour, day.minute) + "  ·  " +
+                        tr("{} messages").replace("{}", c.turns.toString()))
+                }
+                Text("›", color = Palette.Muted)
+            }
+            HorizontalDivider()
+        }
     }
 }
 

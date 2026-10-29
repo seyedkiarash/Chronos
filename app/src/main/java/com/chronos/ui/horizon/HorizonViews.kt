@@ -100,11 +100,11 @@ internal fun MonthHeat(vm: ChronosViewModel, plan: HorizonPlanner.Plan) {
                         .clickable { picked = i }.padding(2.dp),
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
                         Text(localiseDigits(lang, number.toString()), fontSize = 11.sp,
-                            color = if (fill > 0.55f) Color.White else MaterialTheme.colorScheme.onSurface)
+                            color = if (fill > 0.55f) Palette.OnFill else MaterialTheme.colorScheme.onSurface)
                         Row(horizontalArrangement = Arrangement.Center) {
                             dated.filter { it.deadline == day.date() }.take(3).forEach { g ->
                                 Box(Modifier.padding(horizontal = 1.dp).size(6.dp).clip(CircleShape).background(GoalColors.target(goals, g.id))
-                                    .border(BorderStroke(0.5.dp, Color.White), CircleShape))
+                                    .border(BorderStroke(0.5.dp, Palette.Panel), CircleShape))
                             }
                         }
                     }

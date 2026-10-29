@@ -51,6 +51,7 @@ fun NavigatorScreen(nav: NavigatorViewModel) {
     val g = nav.graph
     when (page) {
         NavPage.CHAT -> CrewPanel(nav, compact = false)
+        NavPage.CHATS -> ChatsPanel(nav)
         NavPage.INBOX -> { InboxPanel(nav); if (nav.proposals.isEmpty()) Hint("Nothing has been proposed yet.") }
         NavPage.WEEK -> if (g != null) WeekPanel(nav, g)
         NavPage.GOALS -> if (g != null) { ForecastPanel(nav, g); GraphWizard(g, nav) }   // the map is on the home (25 Oct 2026)

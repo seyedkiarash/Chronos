@@ -40,16 +40,32 @@ private fun statusColor(s: String) = when (s) {
 /** The proposals inbox: a short row each; a tap opens the page. */
 @Composable
 internal fun InboxPanel(nav: NavigatorViewModel) {
-    val all = nav.proposals
-    if (all.isEmpty()) return
+    // Two spaces (your request of 29 Oct 2026): answers to what you asked, and what the app or the model
+    // raised by itself — a weekly review, a reading of your log, a trigger — each with its own list.
+    var mine by remember { mutableStateOf(true) }
+    val all = nav.proposals.filter { it.askedByYou() == mine }
     val pending = all.filter { it.status() == "PENDING" }
     val past = all.filter { it.status() != "PENDING" }
     var showPast by remember { mutableStateOf(false) }
     Panel("Proposals", Palette.Plum) {
-        Hint("What the model proposed. Nothing has changed yet: open one to see what it is for, what it would " +
-             "change and why — and talk it over with the model before you decide.")
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
+            Pill(tr("Your questions") + " (" + nav.proposals.count { it.askedByYou() && it.status() == "PENDING" } + ")", mine) { mine = true }
+            Spacer(Modifier.width(6.dp))
+            Pill(tr("Raised by the app") + " (" + nav.proposals.count { !it.askedByYou() && it.status() == "PENDING" } + ")", !mine) { mine = false }
+        }
+        Hint(if (mine) "Answers to what you asked the Navigator — a message, a question about the graph, a conversation on a proposal. " +
+                 "Nothing has changed yet: open one to see what it would change and why, and talk it over before you decide."
+             else "What the app and the model raised by themselves: the weekly review, what your log suggests, a goal whose " +
+                 "odds moved. Nothing has changed yet; each waits for you.")
         if (pending.isEmpty()) Hint("Nothing is waiting.")
         pending.forEach { InboxRow(nav, it) }
+        if (!mine && nav.appNotes.isNotEmpty()) {
+            Text(tr("Notes from the app"), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 8.dp))
+            nav.appNotes.takeLast(6).reversed().forEach { t ->
+                val day = java.time.Instant.ofEpochMilli(t.at).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+                Hint(dateText(day) + "  ·  " + com.chronos.navigator.llm.client.CrewRun.readable(t.text).lineSequence().first().take(160))
+            }
+        }
         RecheckRow(nav, pending.isNotEmpty())
         if (past.isNotEmpty()) {
             TextButton(onClick = { showPast = !showPast }) { Text(if (showPast) "Hide past proposals" else "Past proposals") }

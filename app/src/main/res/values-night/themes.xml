@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The window behind the app at night, so opening it does not flash white (29 Oct 2026). -->
+    <style name="Theme.Chronos" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#FF11181C</item>
+    </style>
+</resources>

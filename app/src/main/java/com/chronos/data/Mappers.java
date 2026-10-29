@@ -136,6 +136,7 @@ public final class Mappers {
         c.medianMin = r.medianMin; c.sigma = r.sigma; c.quantile = r.quantile;
         c.outbound = Codec.parseLeg(r.outbound);
         c.inbound = Codec.parseLeg(r.inbound);
+        c.days = r.travelDays == null ? null : Codec.parseDays(r.travelDays);
         return c;
     }
 
@@ -149,6 +150,7 @@ public final class Mappers {
         r.medianMin = c.medianMin; r.sigma = c.sigma; r.quantile = c.quantile;
         r.outbound = Codec.leg(c.outbound);
         r.inbound = Codec.leg(c.inbound);
+        r.travelDays = c.days == null ? null : Codec.days(c.days);
         r.position = position;
         return r;
     }
@@ -258,7 +260,7 @@ public final class Mappers {
         for (CommitmentRow r : commitmentRows(c))
             sb.append(r.id).append(r.kind).append(r.load).append(r.recovery).append(r.physLoad).append(r.physRecovery).append(r.away)
               .append(r.sessions).append(r.medianMin).append(r.sigma).append(r.quantile)
-              .append(r.outbound).append(r.inbound);
+              .append(r.outbound).append(r.inbound).append(r.travelDays == null ? "" : "td" + r.travelDays);
         return Integer.toHexString(sb.toString().hashCode());
     }
 }

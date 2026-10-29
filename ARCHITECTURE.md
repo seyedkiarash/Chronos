@@ -18,7 +18,7 @@ Inside `:app` the code is grouped by what you do with the app. Under every scree
 | set priorities | `ui/setup/WeightsScreen` (four levels, one order, drag to move) | `engine/Priorities` (level and place → weight; places a new target with its reasons) | `goals.tier`, `goals.rank` |
 | build and read the plan | `ui/horizon` (HorizonScreen, HorizonViews) | `engine/HorizonPlanner` (hours per day per goal), `Sacrifice` (cuts for deadlines), `Feasibility` (what is short, what fixes it) | `snapshots` |
 | see a day | `ui/day` (DayScreen, DayMatchPanel) | `engine/DaySequencer` (where each block sits), `Energy` + `Objective` (body clock, fatigue, stimulation), `FixedFrame` (classes, travel) | `day_plans` |
-| log what happened | `ui/log` (LogScreen, ReminderPanels) | `auto/Reminders`, `auto/QuickLog` (one-line replies to the model) | `logs` |
+| log what happened | `ui/log` (LogScreen, ReminderPanels) | `auto/Reminders`, `auto/QuickLog` (one-line replies to the model), `engine/LogHomes` (each saved entry under its block, even after the day was arranged again) | `logs` |
 | let it learn (every night) | — | `auto/AutoPlanner` (NightlyWorker, close-out), `engine/Calibrator` (body clock, quality, fatigue, class sessions, leisure stimulation), `engine/RestAdvisor` | `params`, `activities`, `app_state` |
 | look ahead with the Navigator | `ui/navigator` (Home, Network map, Plan, Proposal, Crew, Llm, History…) | `:navigator` — `model` (graph), `estimate` (Kalman speed, adherence), `forecast` (Monte Carlo bands, guard), `allocate` (weekly hours), `trigger`, `llm` (prompts, ChangeSet checks, Staleness) | `nav_*` tables |
 | get proposals and approve them | `ui/navigator/NavigatorProposal`, `NavigatorCrew` | `navigator/llm/client` (CrewRun: crew, relay, habits packages; LlmClient: several keys per provider through KeyRing, cut-off answers continued; NavAsk: sendSure across providers; Outbox: your messages kept until answered; Recheck), `engine/Habits` (patterns in the log), `navigator/bridge/ChronosControl` (try a change on a copy, apply it once approved) | `nav_proposals`, files under `navigator-crew/` |
@@ -42,7 +42,8 @@ Inside `:app` the code is grouped by what you do with the app. Under every scree
 - `navigator/`: the Android side of the Navigator.
   - `store`: its tables
   - `bridge`: talking to Chronos
-  - `llm/client`: network calls, the crew, the copy-and-return relay, the outbox
+  - `llm/client`: network calls, the crew, the copy-and-return relay, the outbox, the conversations
+    (`files/navigator-chats/`, one file per conversation)
 - `validate/`: what Setup still lacks before the planner may run.
 
 ## Rules that keep it in order
@@ -65,5 +66,12 @@ Inside `:app` the code is grouped by what you do with the app. Under every scree
 6. **Every visible English string has a Persian line in `ui/common/StringsFa.kt`.** Sentences with numbers
    go there as templates with `{}`.
 7. **New screen code goes in the sub-package of its task.** What two tasks share goes in `ui/common`.
-8. **What you write is never lost to the network.** A message to a model is kept on the phone first and sent in
+8. **The part of today already lived is never arranged again** (`ChronosRepository.livedFloor`): a plan
+   rebuilt during the day keeps every block before now, so the entries saved under them stay in place.
+9. **One decision per change.** `NavProposals.file` does not file a change set already waiting, and one that
+   covers an older one replaces it (`navigator/llm/Repeats`); the models are shown what waits (`NavAsk.withInbox`).
+10. **Colours come from `Palette`, read when drawn** (light and dark): never a colour fixed in a top-level `val`.
+11. **An edit gives the screens a fresh `Config`** (`ChronosViewModel.edit` copies), and edit lambdas change the
+    config they are handed, never an object captured from the old one.
+12. **What you write is never lost to the network.** A message to a model is kept on the phone first and sent in
    the background (`Outbox`, WorkManager); a failure is shown with its reason, to send again or edit.

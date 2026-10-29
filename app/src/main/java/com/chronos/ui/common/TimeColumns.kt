@@ -111,7 +111,7 @@ internal fun TimeColumns(titles: List<String>, columns: List<List<TimeItem>>, fr
                                 .padding(horizontal = 2.dp, vertical = 1.dp),
                                 contentAlignment = Alignment.TopStart) {
                                 if (tall >= 14.dp)
-                                    Text(it0.label, color = if (it0.solid) Color.White else it0.color,
+                                    Text(it0.label, color = if (it0.solid) Palette.OnFill else it0.color,
                                         fontSize = 9.sp, lineHeight = 10.sp, maxLines = ((tall.value - 2) / 10).toInt().coerceAtLeast(1),
                                         overflow = TextOverflow.Ellipsis)
                             }

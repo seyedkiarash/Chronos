@@ -65,9 +65,9 @@ internal sealed class Editing {
 /** Where the board's issues come from in Readiness. */
 internal val BOARD_WHERES = setOf("goals", "activities", "upkeep", "leisure", "commitments")
 
-private val UPKEEP = Palette.Moss
-private val LEISURE = Palette.Plum
-private val COMMIT = Palette.Ochre
+private val UPKEEP get() = Palette.Moss
+private val LEISURE get() = Palette.Plum
+private val COMMIT get() = Palette.Ochre
 
 /** A goal's colour, shared by every activity under it. */
 /** One goal activity's colour: a shade of its goal's (see [GoalColors]). */

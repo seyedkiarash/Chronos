@@ -79,7 +79,7 @@ public final class FixedFrame {
         if (!hasAwayWork(cfg, dow)) return 0;
         int total = 0;
         for (Commitment c : cfg.commitments) {
-            if (c.kind != CommitmentKind.VARIABLE) continue;
+            if (c.kind != CommitmentKind.VARIABLE || !c.travelledOn(dow)) continue;
             int legs = 0;
             if (c.outbound != null && c.outbound.mode != LegMode.NONE) legs++;
             if (c.inbound != null && c.inbound.mode != LegMode.NONE) legs++;

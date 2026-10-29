@@ -33,11 +33,12 @@ import java.time.LocalDate
  * step back, under Learning and Settings.
  */
 
-enum class NavPage { HOME, CHAT, INBOX, WEEK, GOALS, NEEDS, LEARNING, SETTINGS }
+enum class NavPage { HOME, CHAT, CHATS, INBOX, WEEK, GOALS, NEEDS, LEARNING, SETTINGS }
 
 private fun pageTitle(p: NavPage) = when (p) {
     NavPage.HOME -> "Navigator"
     NavPage.CHAT -> "Conversation"
+    NavPage.CHATS -> "Conversations"
     NavPage.INBOX -> "Inbox"
     NavPage.WEEK -> "This week"
     NavPage.GOALS -> "Goals"
@@ -85,7 +86,9 @@ internal fun NavigatorHome(nav: NavigatorViewModel) {
     val c = counts(nav)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         StatusCard(Modifier.weight(1f), "Inbox", c.pending.toString(),
-            if (c.pending == 0) tr("nothing waiting") else tr("waiting for you"),
+            if (c.pending == 0) tr("nothing waiting") else
+                tr("{} yours · {} from the app").replaceFirst("{}", nav.proposals.count { it.askedByYou() && it.status() == "PENDING" }.toString())
+                    .replaceFirst("{}", nav.proposals.count { !it.askedByYou() && it.status() == "PENDING" }.toString()),
             if (c.pending > 0) Palette.Plum else Palette.Muted) { nav.page = NavPage.INBOX }
         StatusCard(Modifier.weight(1f), "This week", c.weekH?.let { trimNumber(Math.round(it * 2) / 2.0) + " h" } ?: "—",
             when { c.weekH == null -> tr("not planned"); c.weekAccepted -> tr("accepted"); else -> tr("to accept") },

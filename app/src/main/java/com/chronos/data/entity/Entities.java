@@ -108,6 +108,8 @@ public final class Entities {
         public String outbound;          // "PINNED||" or "FLEXIBLE|12:00|22:00"
         public String inbound;
         public int position;
+        /** VARIABLE: "0,1,2", the weekdays it is travelled; null: whenever something is away (v17). */
+        public String travelDays;
     }
 
     /** One pairwise judgement. Key is "goalA|goalB". */

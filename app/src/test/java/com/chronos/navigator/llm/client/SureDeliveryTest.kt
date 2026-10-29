@@ -55,4 +55,14 @@ class SureDeliveryTest {
         assertFalse("a network block is not the key's", KeyRing.perKey("HTTP 403 (…): <!DOCTYPE html> <html lang=en>"))
         assertFalse(KeyRing.perKey("Software caused connection abort"))
     }
+
+    @Test
+    fun anAnswerCutOffInItsJsonIsShownAsWords() {
+        val cut = "{\"message\": \"Your advisor's suggestion fits: \\\"T_EXT\\\" is where it lives.\",\"summary\": \"x\", \"questions\": [\"Is it"
+        assertEquals("Your advisor's suggestion fits: \"T_EXT\" is where it lives.\n\n(The rest of this answer was cut off.)",
+            CrewRun.readable(cut))
+        assertEquals("plain words stay", "Plain words.", CrewRun.readable("Plain words."))
+        val whole = "{\"message\":\"ok\"}"
+        assertEquals("a whole JSON answer is left to the usual reading", whole, CrewRun.readable(whole))
+    }
 }

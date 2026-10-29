@@ -724,16 +724,53 @@ private fun ActivityPanel(vm: ChronosViewModel, day: LocalDate, hasPlan: Boolean
         val placed = blocks.filter { !it.gap && it.start >= 0 }.sortedBy { it.start }
         if (placed.isEmpty()) Hint("Nothing was planned for this day.")
         else PlanBesideDone(vm, day, placed)
+        // Each saved entry under its block, even after the day was arranged again (28 Oct 2026).
+        val places = placed.mapNotNull { b ->
+            val act = activityOf(vm.config, b)
+            val trip = if (act == null) tripOf(vm.config, b) else null
+            val cls = if (act == null && trip == null) classOf(vm.config, b, day) else null
+            when {
+                act != null -> com.chronos.engine.LogHomes.Place("act|" + act.id, b.start)
+                trip != null -> com.chronos.engine.LogHomes.Place("trip|" + trip.id, b.start)
+                cls != null -> com.chronos.engine.LogHomes.Place("class|" + cls.id, b.start)
+                else -> null
+            }
+        }
+        val homes = remember(day, placed, vm.logs) { com.chronos.engine.LogHomes.of(day, places, vm.logs) }
         placed.forEach { b ->
             val act = activityOf(vm.config, b)
             val trip = if (act == null) tripOf(vm.config, b) else null
             val cls = if (act == null && trip == null) classOf(vm.config, b, day) else null
             when {
-                act != null -> SessionBox(vm, day, b, act)
-                trip != null -> TripBox(vm, day, b, trip)
-                cls != null -> ClassBox(vm, day, b, cls)
+                act != null -> SessionBox(vm, day, b, act, homes["act|${act.id}|${b.start}"] ?: b.start)
+                trip != null -> TripBox(vm, day, b, trip, homes["trip|${trip.id}|${b.start}"] ?: b.start)
+                cls != null -> ClassBox(vm, day, b, cls, homes["class|${cls.id}|${b.start}"] ?: b.start)
                 else -> FixedRow(b)
             }
+        }
+        val unseen = remember(day, placed, vm.logs) { com.chronos.engine.LogHomes.unseen(day, places, vm.logs) }
+        if (unseen.isNotEmpty()) UnseenEntries(vm, unseen)
+    }
+}
+
+/**
+ * Saved entries of this day that no block shows any more — the activity is not in the day's plan
+ * now. Kept and listed, never hidden, so they are not filled in a second time (28 Oct 2026).
+ */
+@Composable
+private fun UnseenEntries(vm: ChronosViewModel, unseen: List<LogEntry>) {
+    Spacer(Modifier.height(10.dp))
+    Text(tr("Saved for this day, under no block of its plan now"), style = MaterialTheme.typography.labelMedium, color = Palette.Sand)
+    Hint("The day was arranged again after you saved these, and their block is no longer in it. They are kept and " +
+         "count as they are. If one is the same as an entry above, delete one of the two.")
+    unseen.sortedBy { it.at ?: "" }.forEach { l ->
+        val name = l.actId?.let { vm.config.activity(it)?.name } ?: l.comId?.let { id -> vm.config.commitments.firstOrNull { it.id == id }?.name } ?: "?"
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text((l.at ?: "—") + "  " + name.trim() + "  ·  " +
+                (if (l.at == null) tr("Skipped") else (l.actual?.let { "$it′" } ?: "") +
+                    (l.units?.let { "  ·  " + trimNumber(it) + " " + tr("units") } ?: "")),
+                style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+            TextButton(onClick = { vm.removeLog(l.id) }) { Text("Delete") }
         }
     }
 }
@@ -796,8 +833,8 @@ private fun classOf(cfg: Config, b: Block, day: LocalDate): Commitment? =
  * that session's own mental and physical load and recovery.
  */
 @Composable
-private fun ClassBox(vm: ChronosViewModel, day: LocalDate, b: Block, c: Commitment) {
-    val id = "class|$day|${c.id}|${b.start}"
+private fun ClassBox(vm: ChronosViewModel, day: LocalDate, b: Block, c: Commitment, slot: Int) {
+    val id = "class|$day|${c.id}|$slot"
     val saved = vm.logs.firstOrNull { it.id == id }
     var open by remember(id) { mutableStateOf(false) }
     val key = saved?.ts
@@ -1007,10 +1044,11 @@ private fun goalOf(cfg: Config, act: Activity): Goal? = act.goalId?.let { cfg.go
 /* ---------------------------------------------------------------- a planned block */
 
 @Composable
-private fun SessionBox(vm: ChronosViewModel, day: LocalDate, b: Block, act: Activity) {
-    val id = sessionId(day, act.id, b.start)
+private fun SessionBox(vm: ChronosViewModel, day: LocalDate, b: Block, act: Activity, slot: Int) {
+    // [slot]: the block its entries are saved under, which is this one's start unless it moved since.
+    val id = sessionId(day, act.id, slot)
     val saved = vm.logs.firstOrNull { it.id == id }
-    val prefix = insteadPrefix(day, act.id, b.start)
+    val prefix = insteadPrefix(day, act.id, slot)
     val savedInstead = vm.logs.filter { it.id.startsWith(prefix) }
     var open by remember(id) { mutableStateOf(false) }
 
@@ -1160,10 +1198,10 @@ private fun SessionBox(vm: ChronosViewModel, day: LocalDate, b: Block, act: Acti
  * toward its goal like a session at the desk.
  */
 @Composable
-private fun TripBox(vm: ChronosViewModel, day: LocalDate, b: Block, trip: Commitment) {
-    val id = tripId(day, trip.id, b.start)
+private fun TripBox(vm: ChronosViewModel, day: LocalDate, b: Block, trip: Commitment, slot: Int) {
+    val id = tripId(day, trip.id, slot)
     val saved = vm.logs.firstOrNull { it.id == id }
-    val prefix = duringPrefix(day, trip.id, b.start)
+    val prefix = duringPrefix(day, trip.id, slot)
     val savedDuring = vm.logs.filter { it.id.startsWith(prefix) }
     var open by remember(id) { mutableStateOf(false) }
     val plannedMin = b.dur * Slots.SLOT_MIN

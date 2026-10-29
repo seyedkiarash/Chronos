@@ -62,8 +62,22 @@ object NavAsk {
 
     // ------------------------------------------------------------------ build
 
+    /**
+     * The request with what already waits for the student in the inbox (29 Oct 2026), so the model
+     * builds on it or leaves it rather than proposing it a second time.
+     */
+    fun withInbox(context: Context, req: LlmRequest): LlmRequest {
+        val waiting = NavProposals(DatabaseWiring.navigator(context).dao()).waitingTitles(12)
+        if (waiting.isEmpty()) return req
+        return LlmRequest(req.task(), req.target(), req.system(), req.user() +
+            "\n\nAlready waiting for the student's decision in the inbox — do not propose these again; build on " +
+            "them, or say plainly if one should be replaced:\n" + waiting.joinToString("\n") { "- $it" }, req.webSearch())
+    }
+
     /** The question a task string stands for, against the graph as it is now. Throws when it no longer applies. */
-    fun build(context: Context, g: Graph, task: String): LlmRequest {
+    fun build(context: Context, g: Graph, task: String): LlmRequest = withInbox(context, buildBare(context, g, task))
+
+    internal fun buildBare(context: Context, g: Graph, task: String): LlmRequest {
         val store = DatabaseWiring.navigator(context)
         val today = ChronosRepository.logicalToday()
         val p = task.split("|", limit = 4)
@@ -140,6 +154,8 @@ object NavAsk {
         val req = LlmClient.adapt(profile, build(context, g, task))
         refusal(context, profile, req)?.let { throw IllegalStateException(it) }
         val inbox = NavProposals(store.dao())
+        if (inbox.queuedAlready(task)) return "This question is already waiting to be sent."
+        inbox.waitingFor(task)?.let { return "Its answer is already waiting in the inbox: " + (it.title() ?: it.summary() ?: "open it there") + "." }
         val call = inbox.queue(task, triggerOf(task) + "@" + profile.id, profile.label + " · " + profile.model)
         if (!LlmClient.online(context)) return "No network: the question is queued and will be sent when you are online."
         return send(context, profile, call, req, g)
@@ -149,7 +165,8 @@ object NavAsk {
     fun enqueue(context: Context, task: String) {
         val store = DatabaseWiring.navigator(context)
         val inbox = NavProposals(store.dao())
-        if (inbox.queuedAlready(task)) return
+        // Queued already, or answered and still waiting for you: not asked again (29 Oct 2026).
+        if (inbox.queuedAlready(task) || inbox.waitingFor(task) != null) return
         val profile = LlmSettings(context).active
         inbox.queue(task, triggerOf(task) + "@" + (profile?.id ?: "none"), profile?.let { it.label + " · " + it.model })
     }
@@ -272,7 +289,8 @@ object NavAsk {
         val llm = LlmSettings(context)
         val profile = llm.active ?: throw IllegalStateException("Set up a provider in the LLM panel first.")
         if (!LlmClient.online(context)) throw IllegalStateException("No network: a conversation needs it.")
-        val original = build(context, g, origin.task ?: "")
+        // The question as it was, without the inbox list: a conversation is about this one proposal.
+        val original = buildBare(context, g, origin.task ?: "")
         val req = com.chronos.navigator.llm.Discuss.request(original, describe(v), v.thread(), message)
         val (call, reply) = sendSure(context, profile, req, "DISCUSS|" + proposalId, "discussion")
 

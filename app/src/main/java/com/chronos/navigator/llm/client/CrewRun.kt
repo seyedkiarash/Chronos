@@ -135,7 +135,9 @@ object CrewRun {
                    val steps: MutableList<Step> = mutableListOf(), var proposalId: String? = null,
                    var reply: String? = null, var error: String? = null, var requests: Int = 0,
                    /** Asked in your own chat app (copy and return) rather than by the crew's models. */
-                   var relay: Boolean = false)
+                   var relay: Boolean = false,
+                   /** The conversation it belongs to; null for the app's own (weekly review, log readings). */
+                   var chatId: String? = null)
 
     /** @param failed why your message could not be sent (it stays, to copy, edit or send again); null when it went */
     data class ChatTurn(val who: String, val text: String, val at: Long, val jobId: String? = null,
@@ -160,33 +162,125 @@ object CrewRun {
         .mapNotNull { runCatching { gson.fromJson(it.readText(), Job::class.java) }.getOrNull() }
         .sortedByDescending { it.createdAt }
 
-    private fun chatFile(context: Context) = File(context.filesDir, "navigator-chat.json")
+    // ------------------------------------------------------- conversations
 
-    fun chat(context: Context): List<ChatTurn> = chatFile(context).takeIf { it.exists() }?.let {
+    /**
+     * Conversations kept apart (your request of 28 Oct 2026): each question you start, with its
+     * answers and your follow-ups, is a conversation of its own, in its own file, listed with the
+     * others to read again; the models see only the conversation they are answering. What the app
+     * sends by itself — the weekly review, readings of your log — goes to one conversation of its own.
+     */
+    data class ChatInfo(val id: String, val title: String, val startedAt: Long, val lastAt: Long, val turns: Int) {
+        val fromApp get() = id == APP_CHAT
+    }
+
+    /** The conversation of the app's own packages. */
+    const val APP_CHAT = "from-the-app"
+
+    /** A conversation untouched this long is closed: the next message starts a new one. */
+    private const val CHAT_IDLE_MS = 12 * 3_600_000L
+
+    private fun chatsDir(context: Context) = File(context.filesDir, "navigator-chats").apply { mkdirs() }
+    private fun chatFile(context: Context, id: String) = File(chatsDir(context), "$id.json")
+    /** The one conversation of before 28 Oct 2026, split into conversations the first time they are read. */
+    private fun oldChatFile(context: Context) = File(context.filesDir, "navigator-chat.json")
+    private fun prefs(context: Context) = context.getSharedPreferences("chronos.llm", Context.MODE_PRIVATE)
+
+    private fun read(f: File): List<ChatTurn> = f.takeIf { it.exists() }?.let {
         runCatching { gson.fromJson<List<ChatTurn>>(it.readText(), object : TypeToken<List<ChatTurn>>() {}.type) }.getOrNull()
     } ?: emptyList()
 
-    @Synchronized fun say(context: Context, turn: ChatTurn) {
-        chatFile(context).writeText(gson.toJson((chat(context) + turn).takeLast(200)))
+    fun chat(context: Context, id: String): List<ChatTurn> { migrate(context); return read(chatFile(context, id)) }
+
+    /** Every conversation, the latest first. */
+    fun chats(context: Context): List<ChatInfo> {
+        migrate(context)
+        return chatsDir(context).listFiles { f -> f.name.endsWith(".json") }.orEmpty().mapNotNull { f ->
+            val turns = read(f)
+            if (turns.isEmpty()) return@mapNotNull null
+            val id = f.name.removeSuffix(".json")
+            val first = turns.firstOrNull { it.who == "you" }?.text ?: turns.first().text
+            ChatInfo(id, if (id == APP_CHAT) "From the app" else first.lineSequence().first().take(70),
+                turns.first().at, turns.last().at, turns.size)
+        }.sortedByDescending { it.lastAt }
+    }
+
+    /** The conversation your next message goes to: the open one, unless it has been idle half a day. */
+    @Synchronized fun currentChat(context: Context): String {
+        val id = prefs(context).getString("crew.chat", null)
+        val turns = id?.let { chat(context, it) }.orEmpty()
+        if (id != null && id != APP_CHAT && (turns.isEmpty() || System.currentTimeMillis() - turns.last().at < CHAT_IDLE_MS)) return id
+        return newChat(context)
+    }
+
+    /** The conversation shown and written to, without starting a new one. */
+    fun openChatId(context: Context): String? = prefs(context).getString("crew.chat", null)
+
+    fun openChat(context: Context, id: String) { prefs(context).edit().putString("crew.chat", id).apply(); onChange?.invoke() }
+
+    /** A new, empty conversation; it is listed once something is said in it. */
+    fun newChat(context: Context): String {
+        val id = java.util.UUID.randomUUID().toString()
+        prefs(context).edit().putString("crew.chat", id).apply()
+        onChange?.invoke()
+        return id
+    }
+
+    @Synchronized fun say(context: Context, chatId: String, turn: ChatTurn) {
+        chatFile(context, chatId).writeText(gson.toJson((chat(context, chatId) + turn).takeLast(400)))
         onChange?.invoke()
     }
 
-    fun clearChat(context: Context) { chatFile(context).delete(); onChange?.invoke() }
+    /** Deletes one conversation, only when you ask (its packages stay in the inbox). */
+    fun deleteChat(context: Context, id: String) {
+        chatFile(context, id).delete()
+        if (openChatId(context) == id) prefs(context).edit().remove("crew.chat").apply()
+        onChange?.invoke()
+    }
+
+    /** The conversation a job speaks in. */
+    private fun chatOf(job: Job) = job.chatId ?: APP_CHAT
+
+    /**
+     * The single conversation of before is split once: each message you wrote, with its answers, is a
+     * conversation (it was a question of its own, its job's own id); what the app sent by itself goes
+     * to [APP_CHAT]. The old file is kept beside them, renamed, and nothing is lost.
+     */
+    @Synchronized private fun migrate(context: Context) {
+        val old = oldChatFile(context)
+        if (!old.exists()) return
+        val turns = read(old)
+        val byJob = jobs(context).associateBy { it.id }
+        val out = linkedMapOf<String, MutableList<ChatTurn>>()
+        for (t in turns) {
+            val job = t.jobId?.let { byJob[it] }
+            val id = if (job == null || job.kind == "WEEKLY" || job.kind == "HABITS") APP_CHAT else job.id
+            out.getOrPut(id) { mutableListOf() } += t
+        }
+        for ((id, list) in out) {
+            chatFile(context, id).writeText(gson.toJson(read(chatFile(context, id)) + list))
+            byJob[id]?.let { j -> if (j.chatId == null) { j.chatId = id; File(dir(context), "${j.id}.json").writeText(gson.toJson(j)) } }
+        }
+        old.renameTo(File(context.filesDir, "navigator-chat.before-28oct.json"))
+    }
 
     // ------------------------------------------------------------- starting
 
     /** You told the Navigator something: it is recorded and a job starts when the network allows. */
     fun tell(context: Context, message: String): Job? {
+        // The same message again while the first is still being worked on is the same message (29 Oct 2026).
+        same(context, "INTAKE", message)?.let { return it }
         // Your words are kept first, whatever happens next: a message that cannot go stays, marked.
         val at = System.currentTimeMillis()
+        val chatId = currentChat(context)
         if (!CrewSettings(context).ready) {
-            say(context, ChatTurn("you", message.trim(), at, failed = "Set up the crew's models in the LLM panel first."))
+            say(context, chatId, ChatTurn("you", message.trim(), at, failed = "Set up the crew's models in the LLM panel first."))
             return null
         }
-        val job = Job(java.util.UUID.randomUUID().toString(), "INTAKE", message.trim(), at)
+        val job = Job(java.util.UUID.randomUUID().toString(), "INTAKE", message.trim(), at, chatId = chatId)
         job.steps += listOf(Step("ARCHITECT"), Step("CRITIC"), Step("COORDINATOR"))
         save(context, job)
-        say(context, ChatTurn("you", message.trim(), job.createdAt, job.id))
+        say(context, chatId, ChatTurn("you", message.trim(), job.createdAt, job.id))
         enqueue(context, job.id)
         return job
     }
@@ -197,29 +291,37 @@ object CrewRun {
      * coordinator's model with the whole graph in front of it; a correction is filed as a package.
      */
     fun askGraph(context: Context, message: String): Job? {
+        same(context, "GRAPH", message)?.let { return it }
         val at = System.currentTimeMillis()
+        val chatId = currentChat(context)
         if (!CrewSettings(context).ready) {
-            say(context, ChatTurn("you", message.trim(), at, failed = "Set up the crew's models in the LLM panel first."))
+            say(context, chatId, ChatTurn("you", message.trim(), at, failed = "Set up the crew's models in the LLM panel first."))
             return null
         }
-        val job = Job(java.util.UUID.randomUUID().toString(), "GRAPH", message.trim(), at)
+        val job = Job(java.util.UUID.randomUUID().toString(), "GRAPH", message.trim(), at, chatId = chatId)
         job.steps += listOf(Step("COORDINATOR"))
         save(context, job)
-        say(context, ChatTurn("you", message.trim(), job.createdAt, job.id))
+        say(context, chatId, ChatTurn("you", message.trim(), job.createdAt, job.id))
         enqueue(context, job.id)
         return job
     }
 
+    /** A job on the same words still running, or started in the last ten minutes: sending it twice asks once. */
+    private fun same(context: Context, kind: String, message: String): Job? =
+        jobs(context).firstOrNull { it.kind == kind && it.message?.trim() == message.trim() &&
+            (it.status == "RUNNING" || System.currentTimeMillis() - it.createdAt < 10 * 60_000L) }
+
     /** Marks your message as not sent, with why. */
     @Synchronized fun markFailed(context: Context, jobId: String, why: String) {
-        val turns = chat(context).map { if (it.who == "you" && it.jobId == jobId) it.copy(failed = why) else it }
-        chatFile(context).writeText(gson.toJson(turns))
+        val chatId = job(context, jobId)?.let { chatOf(it) } ?: return
+        val turns = chat(context, chatId).map { if (it.who == "you" && it.jobId == jobId) it.copy(failed = why) else it }
+        chatFile(context, chatId).writeText(gson.toJson(turns))
         onChange?.invoke()
     }
 
-    /** Takes a turn out of the conversation (a failed message being sent again or edited). */
-    @Synchronized fun removeTurn(context: Context, at: Long) {
-        chatFile(context).writeText(gson.toJson(chat(context).filter { it.at != at }))
+    /** Takes a turn out of a conversation (a failed message being sent again or edited). */
+    @Synchronized fun removeTurn(context: Context, chatId: String, at: Long) {
+        chatFile(context, chatId).writeText(gson.toJson(chat(context, chatId).filter { it.at != at }))
         onChange?.invoke()
     }
 
@@ -246,15 +348,15 @@ object CrewRun {
     fun prepareRelay(context: Context, kind: String, message: String?): Job {
         val at = System.currentTimeMillis()
         val job = Job(java.util.UUID.randomUUID().toString(), kind, message?.trim() ?: "the weekly review", at,
-            status = "PREPARING", relay = true)
+            status = "PREPARING", relay = true, chatId = if (kind == "WEEKLY") null else currentChat(context))
         job.steps += Step("CHAT")
         save(context, job)
-        if (kind != "WEEKLY") say(context, ChatTurn("you", message!!.trim(), at, job.id))
+        if (kind != "WEEKLY") say(context, chatOf(job), ChatTurn("you", message!!.trim(), at, job.id))
         try {
             val base = base(context)
             val digest = ChronosControl.digest(base.cfg, DatabaseWiring.repository(context).logs(), base.rest, base.g, base.today)
             val brief = Crew.brief(base.g, base.today, base.bands, base.chronos, digest, language(context))
-            val earlier = chat(context).filter { it.jobId != job.id }.map { Crew.Turn(it.who, it.text) }
+            val earlier = chat(context, chatOf(job)).filter { it.jobId != job.id }.map { Crew.Turn(it.who, it.text) }
             val options = if (kind == "WEEKLY") candidates(context, base) else null
             promptFile(context, job.id).writeText(if (kind == "GRAPH") Crew.relayGraph(brief, Crew.graph(base.g, base.bands), earlier, message!!)
                 else Crew.relay(brief, earlier, message, options))
@@ -473,7 +575,10 @@ object CrewRun {
      * error, an answer with no JSON), to the next free ones. Every attempt is
      * recorded as a call.
      */
-    private fun ask(context: Context, job: Job, role: Crew.Role, req: LlmRequest, needsJson: Boolean = true): Answer {
+    private fun ask(context: Context, job: Job, role: Crew.Role, asked: LlmRequest, needsJson: Boolean = true): Answer {
+        // Roles that propose see what already waits for you, so it is not proposed twice (29 Oct 2026).
+        val req = if (role == Crew.Role.ARCHITECT || role == Crew.Role.TUNER || role == Crew.Role.COORDINATOR)
+            NavAsk.withInbox(context, asked) else asked
         rehearsal(context, role, req)?.let { job.requests++; return it }
         val s = CrewSettings(context)
         val llm = LlmSettings(context)
@@ -696,8 +801,23 @@ object CrewRun {
         val o = ProposalValidator.extractJson(text)
         val m = o?.get("message")?.takeIf { it.isJsonPrimitive }?.asString
         if (!m.isNullOrBlank()) return m
+        readable(text).takeIf { it != text }?.let { return it }
         val cut = text.lastIndexOf("```json").takeIf { it > 0 } ?: text.lastIndexOf('{').takeIf { it > 0 && o != null } ?: text.length
         return text.substring(0, cut).trim().ifBlank { text.trim() }
+    }
+
+    private val MESSAGE = Regex(""""message"\s*:\s*"((?:[^"\\]|\\.)*)"""")
+
+    /**
+     * What a turn says, for reading (28 Oct 2026): an answer that is a JSON object cut off before its
+     * end — stored like that before cut-off answers were continued — shows its message, not the raw JSON.
+     */
+    fun readable(text: String): String {
+        val t = text.trim()
+        if (!t.startsWith("{") || ProposalValidator.extractJson(t) != null) return text
+        val m = MESSAGE.find(t)?.groupValues?.get(1) ?: return text
+        val words = runCatching { com.google.gson.JsonParser.parseString("\"" + m + "\"").asString }.getOrDefault(m)
+        return words + "\n\n(The rest of this answer was cut off.)"
     }
 
     private fun graphQuestion(context: Context, job: Job) {
@@ -706,7 +826,7 @@ object CrewRun {
         val base = base(context)
         val brief = Crew.brief(base.g, base.today, base.bands, base.chronos,
             ChronosControl.digest(base.cfg, DatabaseWiring.repository(context).logs(), base.rest, base.g, base.today), language(context))
-        val earlier = chat(context).filter { it.jobId != job.id }.map { Crew.Turn(it.who, it.text) }
+        val earlier = chat(context, chatOf(job)).filter { it.jobId != job.id }.map { Crew.Turn(it.who, it.text) }
         val co = step(job, Crew.Role.COORDINATOR)
         co.status = "RUNNING"; job.stage = "coordinator"; save(context, job)
         val answer = ask(context, job, Crew.Role.COORDINATOR,
@@ -740,7 +860,7 @@ object CrewRun {
         val base = base(context)
         val brief = Crew.brief(base.g, base.today, base.bands, base.chronos,
             ChronosControl.digest(base.cfg, DatabaseWiring.repository(context).logs(), base.rest, base.g, base.today), language(context))
-        val earlier = chat(context).filter { it.jobId != job.id }.map { Crew.Turn(it.who, it.text) }
+        val earlier = chat(context, chatOf(job)).filter { it.jobId != job.id }.map { Crew.Turn(it.who, it.text) }
 
         // 1. the architect
         val arch = step(job, Crew.Role.ARCHITECT)
@@ -919,7 +1039,7 @@ object CrewRun {
         job.reply = reply.trim()
         save(context, job)
         if (job.kind != "WEEKLY" || proposalId != null)
-            say(context, ChatTurn("navigator", job.reply ?: "", System.currentTimeMillis(), job.id, proposalId))
+            say(context, chatOf(job), ChatTurn("navigator", job.reply ?: "", System.currentTimeMillis(), job.id, proposalId))
     }
 
     /** Files the package in the inbox; returns its id. */

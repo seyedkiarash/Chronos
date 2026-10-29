@@ -64,7 +64,7 @@ class MainActivity : ComponentActivity() {
                 LocalLayoutDirection provides
                     if (vm.lang.rtl) LayoutDirection.Rtl else LayoutDirection.Ltr
             ) {
-                ChronosTheme { ChronosApp(vm, nav) }
+                ChronosTheme(vm.themeMode) { ChronosApp(vm, nav) }
             }
         }
     }

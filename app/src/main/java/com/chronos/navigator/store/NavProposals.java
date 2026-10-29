@@ -46,6 +46,20 @@ public class NavProposals {
 
         /** Nothing to apply: findings, or things to raise with the advisor. */
         public boolean noteOnly() { return ops.stream().allMatch(Op::discussOnly); }
+
+        /**
+         * An answer to something you asked — a message to the crew, a question about the graph, a question
+         * you sent, a revision after your conversation — rather than what the app or the model raised on its
+         * own (the weekly review, readings of your log, a trigger). The inbox keeps the two apart (29 Oct 2026).
+         */
+        public boolean askedByYou() {
+            if (crew != null) {
+                String kind = crew.has("kind") ? crew.get("kind").getAsString() : "";
+                return "INTAKE".equals(kind) || "GRAPH".equals(kind);
+            }
+            // A revision after your conversation stays where its first version came from.
+            return trigger == null || "manual".equals(trigger) || "discussion".equals(trigger);
+        }
     }
 
     // ------------------------------------------------------------------ calls
@@ -99,6 +113,16 @@ public class NavProposals {
      */
     public ProposalRow file(String callId, LlmRequest req, ProposalValidator.Result v, String parentId, int version,
                             List<com.chronos.navigator.llm.Discuss.Turn> thread, JsonObject crew) {
+        // The same changes already waiting are not filed again (29 Oct 2026): the one waiting stays, looked at anew.
+        if (v.ok() && parentId == null) {
+            for (ProposalRow other : dao.proposals()) {
+                if (!"PENDING".equals(other.status) || (callId != null && callId.equals(other.llmCallId))) continue;
+                List<Op> ops = other.ops == null ? List.of() : GSON.fromJson(other.ops, new TypeToken<List<Op>>() {}.getType());
+                if (!com.chronos.navigator.llm.Repeats.same(v.ops(), ops)) continue;
+                update(other.id, val -> val.addProperty("rechecked", System.currentTimeMillis()));
+                return dao.proposal(other.id);
+            }
+        }
         ProposalRow p = new ProposalRow();
         p.id = UUID.randomUUID().toString();
         p.llmCallId = callId;
@@ -121,7 +145,86 @@ public class NavProposals {
         p.validation = val.toString();
         p.createdAt = System.currentTimeMillis();
         dao.putProposal(p);
+        if (v.ok()) replaceCovered(p.id, p.llmCallId, v.ops());
         return p;
+    }
+
+    /**
+     * Older proposals still waiting that the new one covers — it changes everything they change — leave
+     * the inbox with why: one decision per change, not one per time it was proposed. Options filed
+     * together with it, and the version it revises, are not touched here.
+     */
+    private void replaceCovered(String id, String callId, List<Op> ops) {
+        for (ProposalRow other : dao.proposals()) {
+            if (other.id.equals(id) || !"PENDING".equals(other.status)) continue;
+            if (callId != null && callId.equals(other.llmCallId)) continue;
+            List<Op> theirs = other.ops == null ? List.of() : GSON.fromJson(other.ops, new TypeToken<List<Op>>() {}.getType());
+            if (com.chronos.navigator.llm.Repeats.covers(ops, theirs))
+                markOutdated(other.id, "A newer proposal changes the same things; it took its place.");
+        }
+    }
+
+    /**
+     * The inbox as it should be: of proposals still waiting that say the same, or that a newer one
+     * covers, only the newest stays (for the ones filed before this rule). Returns how many left.
+     */
+    public int collapseRepeats() {
+        List<ProposalRow> waiting = new ArrayList<>();
+        for (ProposalRow p : dao.proposals()) if ("PENDING".equals(p.status)) waiting.add(p);
+        waiting.sort((a, b) -> Long.compare(b.createdAt, a.createdAt));
+        int gone = 0;
+        java.util.Set<String> out = new java.util.HashSet<>();
+        for (int i = 0; i < waiting.size(); i++) {
+            ProposalRow newer = waiting.get(i);
+            if (out.contains(newer.id)) continue;
+            List<Op> mine = newer.ops == null ? List.of() : GSON.fromJson(newer.ops, new TypeToken<List<Op>>() {}.getType());
+            for (int j = i + 1; j < waiting.size(); j++) {
+                ProposalRow older = waiting.get(j);
+                if (out.contains(older.id) || (newer.llmCallId != null && newer.llmCallId.equals(older.llmCallId))) continue;
+                List<Op> theirs = older.ops == null ? List.of() : GSON.fromJson(older.ops, new TypeToken<List<Op>>() {}.getType());
+                if (com.chronos.navigator.llm.Repeats.same(mine, theirs) || com.chronos.navigator.llm.Repeats.covers(mine, theirs)) {
+                    markOutdated(older.id, "A newer proposal changes the same things; it took its place.");
+                    out.add(older.id);
+                    gone++;
+                }
+            }
+        }
+        return gone;
+    }
+
+    /** What is waiting for you, in a few words each, for a model not to propose it again. */
+    public List<String> waitingTitles(int most) {
+        List<String> out = new ArrayList<>();
+        for (ProposalRow p : dao.proposals()) {
+            if (!"PENDING".equals(p.status)) continue;
+            View v = view(p);
+            String t = v.title() != null ? v.title() : v.summary();
+            if (t == null || t.isBlank()) continue;
+            String line = t.trim() + (v.summary() != null && !v.summary().equals(t) ? " — " + v.summary().trim() : "");
+            out.add(line.length() > 200 ? line.substring(0, 200) + "…" : line);
+            if (out.size() >= most) break;
+        }
+        return out;
+    }
+
+    /**
+     * A proposal still waiting that answered this question, or null. The same question is the same kind,
+     * trigger and subject: what a trigger adds after them (today's numbers) changes from day to day.
+     */
+    public View waitingFor(String task) {
+        if (task == null) return null;
+        String key = questionKey(task);
+        for (ProposalRow p : dao.proposals()) {
+            if (!"PENDING".equals(p.status) || p.llmCallId == null) continue;
+            LlmCallRow call = dao.llmCall(p.llmCallId);
+            if (call != null && call.task != null && key.equals(questionKey(call.task))) return view(p);
+        }
+        return null;
+    }
+
+    static String questionKey(String task) {
+        String[] p = task.split("\\|", -1);
+        return String.join("|", java.util.Arrays.copyOf(p, Math.min(p.length, 3)));
     }
 
     public List<View> proposals() {

@@ -3476,4 +3476,70 @@ internal val Fa: Map<String, String> = mapOf(
         to "کلید اضافه شد. حالا درخواست‌ها بین {0} کلید پخش می‌شوند.",
     "Key removed."
         to "کلید حذف شد.",
+    "New"
+        to "تازه",
+    "All"
+        to "همه",
+    "New conversation"
+        to "گفت‌وگوی تازه",
+    "Conversations"
+        to "گفت‌وگوها",
+    "From the app"
+        to "از طرف برنامه",
+    "What the app sent by itself: weekly reviews and readings of your log. A message you write here starts a conversation of its own."
+        to "آنچه برنامه خودش فرستاده: بررسی‌های هفتگی و خوانش‌های لاگت. پیامی که اینجا بنویسی گفت‌وگوی جدایی شروع می‌کند.",
+    "This conversation has been quiet for half a day: your next message starts a new one. It stays under All."
+        to "این گفت‌وگو نصف روز است ساکت مانده: پیام بعدی‌ات گفت‌وگوی تازه‌ای شروع می‌کند. این یکی زیر «همه» می‌ماند.",
+    "Delete this conversation"
+        to "حذف این گفت‌وگو",
+    "Only this conversation; its packages stay in the inbox."
+        to "فقط همین گفت‌وگو؛ بسته‌هایش در صندوق می‌مانند.",
+    "Each question you start is a conversation of its own; the model answering sees only that one. Open one to read it again, or to go on with it."
+        to "هر سؤالی که شروع می‌کنی گفت‌وگوی جدای خودش است و مدلی که جواب می‌دهد فقط همان را می‌بیند. یکی را باز کن تا دوباره بخوانی یا ادامه‌اش بدهی.",
+    "Nothing said yet."
+        to "هنوز چیزی گفته نشده.",
+    "{} messages"
+        to "{} پیام",
+    "Saved for this day, under no block of its plan now"
+        to "ثبت‌شده برای این روز، زیر هیچ بلوکی از برنامهٔ فعلی‌اش",
+    "The day was arranged again after you saved these, and their block is no longer in it. They are kept and count as they are. If one is the same as an entry above, delete one of the two."
+        to "بعد از ثبت این‌ها، روز دوباره چیده شد و بلوکشان دیگر در آن نیست. نگه داشته شده‌اند و همان‌طور حساب می‌شوند. اگر یکی با ثبتی در بالا یکی است، یکی از آن دو را حذف کن.",
+    "Appearance"
+        to "ظاهر",
+    "As the phone"
+        to "مثل گوشی",
+    "Light"
+        to "روشن",
+    "Dark"
+        to "تیره",
+    "Your questions"
+        to "سؤال‌های تو",
+    "Raised by the app"
+        to "از طرف برنامه",
+    "Notes from the app"
+        to "یادداشت‌های برنامه",
+    "{} yours · {} from the app"
+        to "{} از تو · {} از برنامه",
+    "Answers to what you asked the Navigator — a message, a question about the graph, a conversation on a proposal. Nothing has changed yet: open one to see what it would change and why, and talk it over before you decide."
+        to "پاسخ‌هایی به آنچه از ناوبر پرسیدی — یک پیام، سؤالی دربارهٔ گراف، گفت‌وگو روی یک پیشنهاد. هنوز چیزی تغییر نکرده: یکی را باز کن تا ببینی چه چیزی را عوض می‌کند و چرا، و پیش از تصمیم درباره‌اش گفت‌وگو کن.",
+    "What the app and the model raised by themselves: the weekly review, what your log suggests, a goal whose odds moved. Nothing has changed yet; each waits for you."
+        to "آنچه برنامه و مدل خودشان مطرح کرده‌اند: بررسی هفتگی، پیشنهادهای لاگت، هدفی که شانسش جابه‌جا شده. هنوز چیزی تغییر نکرده؛ هر کدام منتظر توست.",
+    "Days it is travelled"
+        to "روزهایی که این مسیر طی می‌شود",
+    "Whenever something is away"
+        to "هر روزی که چیزی بیرون از خانه است",
+    "Made on every day something is marked out of the house — a walk outside too."
+        to "هر روزی که چیزی «بیرون از خانه» علامت خورده انجام می‌شود — حتی یک پیاده‌روی.",
+    "Made only on these days. Something out of the house on another day — a walk, the gym nearby — goes without this trip."
+        to "فقط در همین روزها انجام می‌شود. چیزی بیرون از خانه در روزهای دیگر — پیاده‌روی، باشگاه نزدیک — بدون این رفت‌وآمد برنامه‌ریزی می‌شود.",
+    "On those days the trip wraps around everything marked out of the house. It is never dropped — if it will not fit, the day plan reports the conflict instead."
+        to "در آن روزها رفت‌وآمد دور همهٔ کارهای بیرون از خانه قرار می‌گیرد. هیچ‌وقت حذف نمی‌شود — اگر جا نشود، برنامهٔ روز تداخل را گزارش می‌کند.",
+    "{} was not planned: the time it needed is already behind you today."
+        to "{} برنامه‌ریزی نشد: زمانی که لازم داشت امروز گذشته است.",
+    "A newer proposal changes the same things; it took its place."
+        to "پیشنهاد تازه‌تری همین چیزها را تغییر می‌دهد؛ جای این را گرفت.",
+    "This question is already waiting to be sent."
+        to "این سؤال از قبل در صف ارسال است.",
+    "Its answer is already waiting in the inbox: {}."
+        to "پاسخش از قبل در صندوق منتظر است: {}.",
 )

@@ -79,6 +79,15 @@ public class Commitment {
     public Double quantile;
     public Leg outbound = new Leg(LegMode.PINNED);
     public Leg inbound = new Leg(LegMode.PINNED);
+    /**
+     * VARIABLE only: the weekdays it is travelled (0 = Saturday), your report of 29 Oct 2026 — a walk
+     * outside on a day without classes is out of the house, not a trip to the university. Null: every
+     * day something happens away, as before.
+     */
+    public java.util.TreeSet<Integer> days;
+
+    /** Whether this trip is made on a weekday. */
+    public boolean travelledOn(int dow) { return days == null || days.contains(dow); }
 
     /** The session of this commitment held on a weekday at a start slot, or null. */
     public Session sessionAt(int dow, int startSlot) {
@@ -95,6 +104,7 @@ public class Commitment {
         c.medianMin = medianMin; c.sigma = sigma; c.quantile = quantile;
         c.outbound = outbound == null ? null : outbound.copy();
         c.inbound = inbound == null ? null : inbound.copy();
+        c.days = days == null ? null : new java.util.TreeSet<>(days);
         return c;
     }
 }

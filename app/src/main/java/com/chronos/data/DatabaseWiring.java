@@ -122,6 +122,23 @@ public final class DatabaseWiring {
     /** Two kinds of fatigue: physical beside mental. New columns only; the values are filled in by the app. */
     /** v14: hours as well as dates — an activity's start, a goal's deadline, the plan's start — and an activity's last day. */
     /** v16: priorities as levels and an order (your choice of 26 Oct 2026). */
+    /**
+     * v17: the weekdays a trip is made (29 Oct 2026). A trip already set up is made on the days of the
+     * classes held away from home, as it was meant; with no such class it stays as before, null.
+     */
+    static final Migration MIGRATION_16_17 = new Migration(16, 17) {
+        @Override public void migrate(SupportSQLiteDatabase db) {
+            db.execSQL("ALTER TABLE commitments ADD COLUMN travelDays TEXT");
+            java.util.TreeSet<Integer> days = new java.util.TreeSet<>();
+            try (android.database.Cursor c = db.query("SELECT sessions FROM commitments WHERE kind = 'FIXED' AND away = 1")) {
+                while (c.moveToNext())
+                    for (com.chronos.model.Commitment.Session s : Codec.parseSessions(c.getString(0))) days.add(s.day);
+            }
+            if (!days.isEmpty())
+                db.execSQL("UPDATE commitments SET travelDays = ? WHERE kind = 'VARIABLE'", new Object[]{Codec.days(days)});
+        }
+    };
+
     static final Migration MIGRATION_15_16 = new Migration(15, 16) {
         @Override public void migrate(SupportSQLiteDatabase db) {
             db.execSQL("ALTER TABLE goals ADD COLUMN tier INTEGER");
@@ -201,7 +218,7 @@ public final class DatabaseWiring {
                         // logged sessions to a schema bump would destroy the
                         // only thing the model learns from.
                         .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6,
-                            MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16)
+                            MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17)
                         .build();
                     repo = new ChronosRepository(db);
                 }

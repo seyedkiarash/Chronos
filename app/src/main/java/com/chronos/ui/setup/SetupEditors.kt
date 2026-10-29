@@ -779,9 +779,17 @@ private fun CommitmentEditor(vm: ChronosViewModel, e: Editing.OfCommitment, issu
                     sessions.lastOrNull()?.start ?: "09:00", sessions.lastOrNull()?.end ?: "11:00")) } }) { Text("Add a session") }
                 Hint("Each session has its own load and recovery: a four-hour lab drains more than a lecture.")
             } else {
+                // The days it is travelled (your report of 29 Oct 2026): not every day something happens outside.
+                Text(tr("Days it is travelled"), style = MaterialTheme.typography.labelMedium)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Pill(tr("Whenever something is away"), c.days == null) { upd { days = null } }
+                }
+                DayPicker(c.days.orEmpty()) { d -> upd { days = if (d.isEmpty()) null else java.util.TreeSet(d) } }
+                Hint(if (c.days == null) "Made on every day something is marked out of the house — a walk outside too."
+                     else "Made only on these days. Something out of the house on another day — a walk, the gym nearby — goes without this trip.")
                 LegBlock("Getting there", c.outbound, color) { tick++ }
                 LegBlock("Coming back", c.inbound, color) { tick++ }
-                Hint("The trip wraps around everything marked out of the house that day. It is never dropped — if it " +
+                Hint("On those days the trip wraps around everything marked out of the house. It is never dropped — if it " +
                      "will not fit, the day plan reports the conflict instead.")
             }
         }

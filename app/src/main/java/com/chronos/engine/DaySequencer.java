@@ -273,6 +273,15 @@ public final class DaySequencer {
         }
 
         int st = Slots.clamp(forcedStart, 0, PER_DAY - b.dur);
+        // Never over what is behind you (29 Oct 2026): a trip whose time has passed, or that would cover a
+        // block kept from earlier in the day, is not laid over it — that put two things at 06:30.
+        boolean overKept = st < floorSlot;
+        for (Block o : placed)
+            if (o.kept && o.start >= 0 && o.start < st + b.dur && st < o.start + o.dur) overKept = true;
+        if (overKept) {
+            warnings.add(b.name + " was not planned: the time it needed is already behind you today.");
+            return;
+        }
         List<Block> kept = new ArrayList<>();
         List<Block> evicted = new ArrayList<>();
         for (Block o : placed) {
@@ -645,7 +654,8 @@ public final class DaySequencer {
         final int first = firstAway, last = lastAway;
 
         for (Commitment c : cfg.commitments) {
-            if (c.kind != CommitmentKind.VARIABLE) continue;
+            // Only on the days it is travelled (29 Oct 2026): a walk outside is not a trip to the university.
+            if (c.kind != CommitmentKind.VARIABLE || !c.travelledOn(dow)) continue;
             int dur = FixedFrame.tripSlots(c);
 
             if (keptNamed(c.name + " (out)") == 0) leg(c, c.outbound, c.name + " (out)", dur, first - dur,

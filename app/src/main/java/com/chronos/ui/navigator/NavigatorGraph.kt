@@ -47,10 +47,10 @@ internal fun typeColor(t: NodeType?): Color = when (t) {
     NodeType.SKILL -> Palette.Teal
     NodeType.TASK -> Palette.Indigo
     NodeType.MILESTONE -> Palette.Ochre
-    NodeType.GATE -> Color(0xFF9E5A7A)
+    NodeType.GATE -> Palette.forNight(Color(0xFF9E5A7A))
     NodeType.DECISION -> Palette.Plum
     NodeType.TERMINAL -> Palette.Moss
-    NodeType.EXTERNAL_TRACK -> Color(0xFF34495E)
+    NodeType.EXTERNAL_TRACK -> Palette.forNight(Color(0xFF34495E))
     null -> Palette.Muted
 }
 
@@ -82,7 +82,7 @@ internal fun ownerColor(o: Kinds.Owner?) = when (o) {
     Kinds.Owner.SYSTEM_SUGGESTED -> Palette.Teal; else -> Palette.Muted
 }
 
-private val PHASE_COLORS = listOf(Palette.Steel, Palette.Indigo, Palette.Moss, Palette.Ochre, Palette.Teal, Palette.Plum)
+private val PHASE_COLORS get() = listOf(Palette.Steel, Palette.Indigo, Palette.Moss, Palette.Ochre, Palette.Teal, Palette.Plum)
 
 private fun phaseColor(index: Int) = PHASE_COLORS[index % PHASE_COLORS.size]
 
@@ -163,7 +163,7 @@ private fun PhaseBar(phases: List<String>, current: Int, onPick: (Int) -> Unit) 
                     .padding(horizontal = 14.dp, vertical = 7.dp)
             ) {
                 Text(p, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold,
-                    color = if (selected) Color.White else c)
+                    color = if (selected) Palette.OnFill else c)
             }
         }
     }
@@ -198,7 +198,7 @@ private fun Chip(text: String, color: Color, filled: Boolean = false) {
             .background(if (filled) color else color.copy(alpha = 0.12f))
             .padding(horizontal = 8.dp, vertical = 3.dp)
     ) {
-        Text(text, style = MaterialTheme.typography.labelSmall, color = if (filled) Color.White else color)
+        Text(text, style = MaterialTheme.typography.labelSmall, color = if (filled) Palette.OnFill else color)
     }
 }
 

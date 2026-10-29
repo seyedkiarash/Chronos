@@ -353,8 +353,27 @@ public class ChronosRepository {
         // The day you are in loses its old arrangement above. Arrange it again now,
         // rather than when a screen happens to ask: if none asks before the day
         // closes, the day would be left with no kept plan and its log page empty.
-        if (!start.isAfter(lived)) arrange(cfg, bundle, lived, start.equals(lived) ? kept : List.of());
+        if (!start.isAfter(lived)) arrange(cfg, bundle, lived, start.equals(lived) ? kept : List.of(),
+            start.equals(lived) ? keptFloor : 0);
         return bundle;
+    }
+
+    /** Where the arrangement kept by [keptBefore] ends, in slots: nothing new is placed before it. */
+    private int keptFloor;
+
+    /**
+     * The first minute of a date that is still ahead (28 Oct 2026): past the hour the plan is built
+     * from, and, on the day you are in, past the hour it is now. A plan built again at 23:00 — after a
+     * setting changed, say — leaves the day behind you as it was: its blocks, and the entries you saved
+     * under them, stay where they are. Before, the whole day was arranged anew and the evening's entries
+     * were left under blocks that had moved.
+     */
+    public int livedFloor(Config cfg, LocalDate date) {
+        int floor = cfg.dayFloor(date);
+        if (!date.equals(logicalToday())) return floor;
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        int lived = now.toLocalDate().isAfter(date) ? 1440 : now.getHour() * 60 + now.getMinute();
+        return Math.max(floor, lived);
     }
 
     /**
@@ -363,25 +382,45 @@ public class ChronosRepository {
      * kept whole, and the plan then starts where it ends. The new arrangement is made around them.
      */
     private List<Block> keptBefore(Config cfg, LocalDate start) {
-        int floor = cfg.dayFloor(start);
-        if (floor <= 0 || !start.equals(logicalToday())) return List.of();
+        keptFloor = 0;
+        if (!start.equals(logicalToday())) return List.of();
+        int floor = livedFloor(cfg, start);
+        if (floor <= 0) return List.of();
         DayPlanRow old = planDao.day(start.toString());
         if (old == null) return List.of();
         int floorSlot = (floor + com.chronos.engine.Slots.SLOT_MIN - 1) / com.chronos.engine.Slots.SLOT_MIN;
         List<Block> kept = new ArrayList<>();
         int end = floorSlot;
         for (Block b : withoutRepeats(Codec.parseBlocks(old.blocks))) {
-            if (b.start < 0 || b.start >= floorSlot || b.fixed || b.gap) continue;
+            if (b.start < 0 || b.start >= floorSlot || b.fixed || b.gap || tripNotMade(cfg, b, start)) continue;
             kept.add(b);
             end = Math.max(end, b.start + b.dur);
         }
-        if (end > floorSlot && cfg.planFrom != null) {
+        if (end > floorSlot && cfg.planFrom != null && cfg.dayFloor(start) > 0) {
             int m = Math.min(end * com.chronos.engine.Slots.SLOT_MIN, 1439);
             java.time.LocalDateTime from = start.atTime(m / 60, m % 60);
             cfg.planFrom = from;
             mutateState(r -> r.planFrom = from.toString());
         }
+        // The hours already lived are not given out again: the horizon sees today from here on.
+        int m = Math.min(Math.max(end, floorSlot) * com.chronos.engine.Slots.SLOT_MIN, 1439);
+        if (cfg.dayFloor(start) < m) cfg.planFrom = start.atTime(m / 60, m % 60);
+        keptFloor = Math.max(end, floorSlot);
         return kept;
+    }
+
+    /**
+     * A trip leg the settings no longer make that day (29 Oct 2026): kept from an older arrangement, it
+     * would hold a commute on a day without classes — and over the reading planned beside it.
+     */
+    private static boolean tripNotMade(Config cfg, Block b, LocalDate date) {
+        if (b.name == null || !b.away) return false;
+        int dow = com.chronos.engine.Slots.dow(date);
+        for (Commitment c : cfg.commitments)
+            if (c.kind == com.chronos.model.Enums.CommitmentKind.VARIABLE
+                    && (b.name.equals(c.name + " (out)") || b.name.equals(c.name + " (back)")))
+                return !c.travelledOn(dow);
+        return false;
     }
 
     /** How far back a day's plan is kept for filling in its log late. */
@@ -639,7 +678,9 @@ public class ChronosRepository {
         if (cached != null && cached.snapshotId == bundle.snapshotId() && cached.seed == seed)
             return fromRow(cached, cfg, demand);
         // Arranged again during the day it is: what it held before the hour it is built from stays.
-        return arrange(cfg, bundle, date, cached == null ? List.of() : keptIn(cached, cfg, date));
+        List<Block> kept = cached == null ? List.of() : keptIn(cached, cfg, date);
+        int floor = livedFloor(cfg, date);
+        return arrange(cfg, bundle, date, kept, kept.isEmpty() ? 0 : (floor + com.chronos.engine.Slots.SLOT_MIN - 1) / com.chronos.engine.Slots.SLOT_MIN);
     }
 
     /**
@@ -648,7 +689,7 @@ public class ChronosRepository {
      * travelled, a lunch already eaten, goal work already given its hours — instead of laying a
      * second plan over the first.
      */
-    private DaySequencer.Result arrange(Config cfg, PlanBundle bundle, LocalDate date, List<Block> kept) {
+    private DaySequencer.Result arrange(Config cfg, PlanBundle bundle, LocalDate date, List<Block> kept, int floorSlot) {
         long seed = seedFor(date, bundle.configHash());
         // A stored block carries no output curve: goal work kept from the morning gets its activity's back
         // (from the whole configuration — the day's own may no longer list it), or it would yield nothing.
@@ -659,8 +700,6 @@ public class ChronosRepository {
                     k.tab = com.chronos.engine.YieldCurve.table(a);
                     k.qPlan = Math.max(0.05, a.q - cfg.params.lcbBeta * a.qSigma);
                 }
-        int floor = cfg.dayFloor(date);
-        int floorSlot = kept.isEmpty() ? 0 : (floor + com.chronos.engine.Slots.SLOT_MIN - 1) / com.chronos.engine.Slots.SLOT_MIN;
         DaySequencer.Result r = DaySequencer.run(cfg.on(date), com.chronos.engine.Slots.dow(date), allocationFor(bundle, date),
             seed, bundle.cutsOn(date), isRestDay(date), kept, floorSlot);
         store(date, bundle.snapshotId(), seed, r);
@@ -669,12 +708,13 @@ public class ChronosRepository {
 
     /** The blocks of a stored arrangement of today that start before the hour the plan is built from. */
     private List<Block> keptIn(DayPlanRow row, Config cfg, LocalDate date) {
-        int floor = cfg.dayFloor(date);
-        if (floor <= 0 || !date.equals(logicalToday())) return List.of();
+        if (!date.equals(logicalToday())) return List.of();
+        int floor = livedFloor(cfg, date);
+        if (floor <= 0) return List.of();
         int floorSlot = (floor + com.chronos.engine.Slots.SLOT_MIN - 1) / com.chronos.engine.Slots.SLOT_MIN;
         List<Block> kept = new ArrayList<>();
         for (Block b : withoutRepeats(Codec.parseBlocks(row.blocks)))
-            if (b.start >= 0 && b.start < floorSlot && !b.fixed && !b.gap) kept.add(b);
+            if (b.start >= 0 && b.start < floorSlot && !b.fixed && !b.gap && !tripNotMade(cfg, b, date)) kept.add(b);
         return kept;
     }
 

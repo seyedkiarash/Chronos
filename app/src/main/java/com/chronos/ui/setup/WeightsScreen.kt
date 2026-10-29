@@ -36,7 +36,7 @@ import com.chronos.model.Goal
  * heading into another. A new target is placed by the app with its reasons, marked until you keep it.
  */
 
-internal val TIER_COLORS = listOf(Palette.Brick, Palette.Sand, Palette.Steel, Palette.Muted)
+internal val TIER_COLORS get() = listOf(Palette.Brick, Palette.Sand, Palette.Steel, Palette.Muted)
 
 /** The levels as answers to "if this is not done in time, how bad is it?" */
 internal val TIER_ANSWERS = listOf("A disaster", "Serious", "A nuisance", "It hardly matters")

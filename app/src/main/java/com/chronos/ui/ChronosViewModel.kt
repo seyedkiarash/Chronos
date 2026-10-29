@@ -45,7 +45,7 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
 
     companion object {
         /** Raised when the way days are arranged changes, so stored plans are solved again. */
-        private const val ENGINE_VERSION = 8
+        private const val ENGINE_VERSION = 10
         /** How far ahead the Horizon screen looks for things that did not fit. */
         private const val UPCOMING_DAYS = 7
     }
@@ -55,11 +55,12 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
     private val nav = DatabaseWiring.navigator(app)
 
     /**
-     * Config is a mutable Java object, so reassigning it would tell Compose
-     * nothing. Every edit bumps [revision] instead, and each screen reads that
-     * value once to subscribe.
+     * Config is a mutable Java object. Every edit bumps [revision], and each screen reads that
+     * value once to subscribe; and since 29 Oct 2026 every edit also hands the screens a fresh
+     * copy, so a card given the configuration (or one of its goals or activities) is drawn again
+     * at once — before, an unchanged reference let Compose skip it until you changed tabs.
      */
-    var config: Config = Config(); private set
+    var config: Config by mutableStateOf(Config()); private set
     var revision by mutableIntStateOf(0); private set
 
     /**
@@ -344,6 +345,17 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
         prefs.edit().putString("lang", value.code).apply()
     }
 
+    /** Light, dark, or as the phone is set (29 Oct 2026). A display preference, like the language. */
+    var themeMode by mutableStateOf(
+        com.chronos.ui.common.ThemeMode.entries.firstOrNull { it.code == prefs.getString("theme", null) }
+            ?: com.chronos.ui.common.ThemeMode.SYSTEM
+    ); private set
+
+    fun setTheme(value: com.chronos.ui.common.ThemeMode) {
+        themeMode = value
+        prefs.edit().putString("theme", value.code).apply()
+    }
+
     private val dayCache = mutableStateMapOf<LocalDate, DaySequencer.Result>()
     private val requested = mutableSetOf<LocalDate>()
 
@@ -461,9 +473,11 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
 
     /** Every configuration change goes through here. */
     fun edit(block: (Config) -> Unit) {
-        block(config)
+        val next = config.copy()
+        block(next)
         // Weights follow the priority levels; a new target is placed in one (26 Oct 2026).
-        com.chronos.engine.Priorities.settle(config, com.chronos.data.ChronosRepository.logicalToday())
+        com.chronos.engine.Priorities.settle(next, com.chronos.data.ChronosRepository.logicalToday())
+        config = next
         revision++
         dayCache.clear()
         requested.clear()

@@ -139,7 +139,7 @@ object Recheck {
             if (withModel) (worth.size - MODEL_MAX).coerceAtLeast(0) else worth.size, notes)
         // The conversation hears about it too, where the packages were announced.
         if (outdated.isNotEmpty() || asked > 0)
-            CrewRun.say(context, CrewRun.ChatTurn("navigator", report.line(persian(context)), now, null, null))
+            CrewRun.say(context, CrewRun.APP_CHAT, CrewRun.ChatTurn("navigator", report.line(persian(context)), now, null, null))
         return report
     }
 

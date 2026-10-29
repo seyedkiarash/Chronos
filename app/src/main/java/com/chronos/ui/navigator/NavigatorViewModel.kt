@@ -100,6 +100,11 @@ class NavigatorViewModel(private val app: Application) : AndroidViewModel(app) {
 
     /** Your conversation with the Navigator, and the crew's jobs, newest first. */
     var chat by mutableStateOf<List<com.chronos.navigator.llm.client.CrewRun.ChatTurn>>(emptyList()); private set
+    /** The conversation open, and every conversation, the latest first (28 Oct 2026). */
+    var chatId by mutableStateOf<String?>(null); private set
+    var chats by mutableStateOf<List<com.chronos.navigator.llm.client.CrewRun.ChatInfo>>(emptyList()); private set
+    /** What the app sent by itself (weekly reviews, readings of your log, re-checks): shown in the inbox, not among your conversations. */
+    var appNotes by mutableStateOf<List<com.chronos.navigator.llm.client.CrewRun.ChatTurn>>(emptyList()); private set
     var jobs by mutableStateOf<List<com.chronos.navigator.llm.client.CrewRun.Job>>(emptyList()); private set
     var crewPicks by mutableStateOf<Map<String, com.chronos.navigator.llm.client.CrewSettings.Pick>>(emptyMap()); private set
     var freeModels by mutableStateOf<List<com.chronos.navigator.llm.client.ModelInfo>>(emptyList()); private set
@@ -127,7 +132,11 @@ class NavigatorViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     private fun loadCrew() {
-        chat = com.chronos.navigator.llm.client.CrewRun.chat(app)
+        chats = com.chronos.navigator.llm.client.CrewRun.chats(app).filter { !it.fromApp }
+        appNotes = com.chronos.navigator.llm.client.CrewRun.chat(app, com.chronos.navigator.llm.client.CrewRun.APP_CHAT)
+        // The app's own notes live in the inbox now, not among your conversations (29 Oct 2026).
+        chatId = com.chronos.navigator.llm.client.CrewRun.openChatId(app)?.takeIf { it != com.chronos.navigator.llm.client.CrewRun.APP_CHAT }
+        chat = chatId?.let { com.chronos.navigator.llm.client.CrewRun.chat(app, it) } ?: emptyList()
         jobs = com.chronos.navigator.llm.client.CrewRun.jobs(app).take(12)
         crewPicks = crew.picks
         freeLeft = crew.freeLeft
@@ -221,14 +230,14 @@ class NavigatorViewModel(private val app: Application) : AndroidViewModel(app) {
 
     /** A message that was not sent, sent again as it was. */
     fun retry(turn: com.chronos.navigator.llm.client.CrewRun.ChatTurn) = work {
-        com.chronos.navigator.llm.client.CrewRun.removeTurn(app, turn.at)
+        chatId?.let { com.chronos.navigator.llm.client.CrewRun.removeTurn(app, it, turn.at) }
         com.chronos.navigator.llm.client.CrewRun.tell(app, turn.text)
         loadCrew()
     }
 
     /** A message that was not sent, taken back into the box to change it. */
     fun takeBack(turn: com.chronos.navigator.llm.client.CrewRun.ChatTurn) = work {
-        com.chronos.navigator.llm.client.CrewRun.removeTurn(app, turn.at)
+        chatId?.let { com.chronos.navigator.llm.client.CrewRun.removeTurn(app, it, turn.at) }
         loadCrew()
     }
 
@@ -248,7 +257,14 @@ class NavigatorViewModel(private val app: Application) : AndroidViewModel(app) {
         message = "The crew is reviewing the week; its package arrives in the inbox."
     }
 
-    fun clearChat() = work { com.chronos.navigator.llm.client.CrewRun.clearChat(app); loadCrew() }
+    /** Deletes the open conversation, when you ask; the others and the inbox stay. */
+    fun deleteChat() = work { chatId?.let { com.chronos.navigator.llm.client.CrewRun.deleteChat(app, it) }; loadCrew() }
+
+    /** A new conversation: your next message starts it, with none of the others in front of the model. */
+    fun newChat() = work { com.chronos.navigator.llm.client.CrewRun.newChat(app); loadCrew() }
+
+    /** An earlier conversation opened again, to read or to go on with. */
+    fun openChat(id: String) = work { com.chronos.navigator.llm.client.CrewRun.openChat(app, id); loadCrew(); page = NavPage.CHAT }
 
     fun autoAssignCrew() = work {
         com.chronos.navigator.llm.client.CrewRun.autoAssign(app)
@@ -337,6 +353,8 @@ class NavigatorViewModel(private val app: Application) : AndroidViewModel(app) {
         week = store.latestAllocation()
         following = store.following()
         nodeActivities = graph?.let { com.chronos.navigator.bridge.Bridge.nodeActivities(it, cfg, store.links()) } ?: emptyMap()
+        // One decision per change: what a newer proposal repeats or covers leaves the inbox (29 Oct 2026).
+        inbox.collapseRepeats()
         proposals = inbox.proposals()
         syncDiffs = runCatching { com.chronos.navigator.bridge.Sync.diffs(app) }
             .onFailure { android.util.Log.w("Navigator", "sync diffs failed", it) }.getOrElse { emptyList() }

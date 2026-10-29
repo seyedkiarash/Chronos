@@ -39,19 +39,22 @@ import java.util.UUID
  * unlocks the next. Each step has its own accent colour, and the step bar shows
  * how many blocking answers are still missing in each.
  */
-private enum class Step(val title: String, val wheres: Set<String>, val accent: Color, val blurb: String) {
-    BodyClock("Body clock", setOf("bodyClock"), Palette.Steel,
+private enum class Step(val title: String, val wheres: Set<String>, private val tint: () -> Color, val blurb: String) {
+    BodyClock("Body clock", setOf("bodyClock"), { Palette.Steel },
         "Four numbers define the capacity curve. Rough answers are fine — a week of check-ins " +
         "replaces them with fitted values."),
-    Scheduler("Scheduler", setOf("solver"), Palette.Plum,
+    Scheduler("Scheduler", setOf("solver"), { Palette.Plum },
         "Safe fatigue line, slack, pessimism and the two penalties. The table at the bottom tells " +
         "you which one to move when a plan feels wrong."),
-    Board("Goals and activities", BOARD_WHERES, Palette.Indigo,
+    Board("Goals and activities", BOARD_WHERES, { Palette.Indigo },
         "Your goals with the work that serves them, then upkeep and commitments. Tap anything to open " +
         "it; a red mark means something in it is still missing."),
-    Calendar("Calendar", setOf("calendar"), Palette.Teal,
+    Calendar("Calendar", setOf("calendar"), { Palette.Teal },
         "Optional. Pick a calendar and the next seven days are written into it, and rewritten " +
         "after every rebuild.");
+
+    /** Its colour, read when drawn, so it follows the light or dark theme. */
+    val accent: Color get() = tint()
 }
 
 @Composable
@@ -116,6 +119,13 @@ private fun LanguagePanel(vm: ChronosViewModel) {
             }
         }
         Hint("The interface only. Your own words — goal names, activity names — are never translated.")
+        // Light or dark (29 Oct 2026).
+        Text(tr("Appearance"), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 10.dp))
+        FlowRowSimple {
+            com.chronos.ui.common.ThemeMode.entries.forEach { m ->
+                Pill(tr(m.label), vm.themeMode == m) { vm.setTheme(m) }
+            }
+        }
     }
 }
 
@@ -160,7 +170,7 @@ private fun StepBar(current: Step, missing: Map<Step, Int>, onPick: (Step) -> Un
             val selected = st == current
             val left = missing[st] ?: 0
             val bg = if (selected) st.accent else st.accent.copy(alpha = 0.10f)
-            val fg = if (selected) Color.White else st.accent
+            val fg = if (selected) Palette.OnFill else st.accent
             Row(
                 Modifier.padding(end = 6.dp)
                     .clip(RoundedCornerShape(16.dp))
@@ -178,7 +188,7 @@ private fun StepBar(current: Step, missing: Map<Step, Int>, onPick: (Step) -> Un
                 Spacer(Modifier.width(6.dp))
                 Text(if (left == 0) "✓" else "$left",
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (left == 0) fg else if (selected) Color.White else Palette.Brick,
+                    color = if (left == 0) fg else if (selected) Palette.OnFill else Palette.Brick,
                     fontWeight = FontWeight.Bold)
             }
         }
@@ -204,17 +214,19 @@ private fun WizardFooter(step: Step, onBack: () -> Unit, onNext: () -> Unit, onF
 /* ------------------------------------------- windows (the nap uses them) */
 
 @Composable
-private fun WindowsEditor(vm: ChronosViewModel, windows: MutableList<Activity.Window>) {
+private fun WindowsEditor(vm: ChronosViewModel, windows: List<Activity.Window>,
+                          of: (com.chronos.model.Config) -> MutableList<Activity.Window>) {
+    // [of] finds the same list in the configuration being edited: an edit works on a fresh copy (29 Oct 2026).
     vm.observeConfig()
     Column(Modifier.padding(top = 10.dp)) {
         Text("Allowed hours", style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         windows.forEachIndexed { i, w ->
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-                TimeField("From", w.from, Modifier.weight(1f)) { v -> vm.edit { w.from = v } }
+                TimeField("From", w.from, Modifier.weight(1f)) { v -> vm.edit { c -> of(c)[i].from = v } }
                 Spacer(Modifier.width(8.dp))
-                TimeField("To", w.to, Modifier.weight(1f)) { v -> vm.edit { w.to = v } }
-                TextButton(onClick = { vm.edit { windows.removeAt(i) } }) { Text("×") }
+                TimeField("To", w.to, Modifier.weight(1f)) { v -> vm.edit { c -> of(c)[i].to = v } }
+                TextButton(onClick = { vm.edit { c -> of(c).removeAt(i) } }) { Text("×") }
             }
             if (Slots.span(w.from, w.to) == null)
                 Text("This window ends before it starts, so it is ignored until you fix it. " +
@@ -222,7 +234,7 @@ private fun WindowsEditor(vm: ChronosViewModel, windows: MutableList<Activity.Wi
                     style = MaterialTheme.typography.labelSmall, color = Palette.Brick)
         }
         TextButton(onClick = {
-            vm.edit { windows.add(Activity.Window("08:00", "12:00")) }
+            vm.edit { c -> of(c).add(Activity.Window("08:00", "12:00")) }
         }) { Text("Add a window") }
         Hint("Several windows are allowed. A morning and an afternoon slot is common.")
     }
@@ -340,7 +352,7 @@ private fun NapPanel(vm: ChronosViewModel, accent: Color) {
                 }
             }
         } else {
-            WindowsEditor(vm, nap.windows)
+            WindowsEditor(vm, nap.windows) { c -> c.activities[index].windows }
         }
         Row {
             IntField("Shortest (min)", nap.minBlock, modifier = Modifier.weight(1f)) { v ->

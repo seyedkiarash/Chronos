@@ -39,10 +39,10 @@ import com.chronos.model.Enums
  * right to left, as printed timetables do.
  */
 
-private val CLASS_COLORS = listOf(
+private val CLASS_COLORS get() = listOf(
     Color(0xFFB07A3C), Color(0xFF3F7F87), Color(0xFF8A6A9E), Color(0xFF4A4E8C),
     Color(0xFF5E8C6A), Color(0xFF9E5A6B), Color(0xFF2F5D7C)
-)
+).map { Palette.forNight(it) }
 
 /** Saturday to Friday, short, as Persian timetables print them. */
 private val FA_DAYS = arrayOf("شنبه", "۱شنبه", "۲شنبه", "۳شنبه", "۴شنبه", "۵شنبه", "جمعه")
@@ -149,9 +149,9 @@ internal fun ClassTimetable(vm: ChronosViewModel, flagged: Set<String>, open: (E
                             .clickable { open(Editing.OfCommitment(p.c.copy(), false, "Times")) }
                             .padding(horizontal = 4.dp, vertical = 2.dp)) {
                             Column {
-                                Text(p.c.name ?: "?", color = Color.White, fontSize = 11.sp, lineHeight = 12.sp,
+                                Text(p.c.name ?: "?", color = Palette.OnFill, fontSize = 11.sp, lineHeight = 12.sp,
                                     fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                Text(localiseDigits(lang, hhmm(p.from) + "–" + hhmm(p.to)), color = Color.White.copy(alpha = 0.85f),
+                                Text(localiseDigits(lang, hhmm(p.from) + "–" + hhmm(p.to)), color = Palette.OnFill.copy(alpha = 0.85f),
                                     fontSize = 9.sp, lineHeight = 10.sp, maxLines = 1)
                             }
                         }
