@@ -14,3 +14,9 @@
 .cxx
 local.properties
 .kotlin
+# The release key and its passwords stay on this computer (31 Oct 2026).
+keystore.properties
+*.jks
+*.keystore
+# Threat-model working notes are reviewed before anything of them is shared.
+threat-model/

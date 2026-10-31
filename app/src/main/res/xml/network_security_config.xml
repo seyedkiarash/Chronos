@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Every connection is HTTPS (31 Oct 2026): the model providers and OpenRouter's model list. Android 9
+   and newer refuse clear text already; this makes Android 8 (the oldest the app runs on) refuse it too,
+   and trusts only the system's certificate authorities, never ones a user or app added.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

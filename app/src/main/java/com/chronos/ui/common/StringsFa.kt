@@ -3542,4 +3542,18 @@ internal val Fa: Map<String, String> = mapOf(
         to "این سؤال از قبل در صف ارسال است.",
     "Its answer is already waiting in the inbox: {}."
         to "پاسخش از قبل در صندوق منتظر است: {}.",
+    "Make it from my goals"
+        to "ساختن از روی هدف‌هایم",
+    "No goal graph yet. Make one from the goals you set up in Chronos — each goal and the work under it become its first nodes, and the Navigator breaks them down further with you — or import a graph file in Settings."
+        to "هنوز گراف هدفی نیست. از روی هدف‌هایی که در Chronos تنظیم کرده‌ای بساز — هر هدف و کارهای زیرش اولین گره‌هایش می‌شوند و ناوبر همراه تو آن‌ها را بیشتر می‌شکند — یا در تنظیمات یک فایل گراف وارد کن.",
+    "No goal graph yet. Make one from the goals you set up in Chronos, or import a goal-graph JSON file. A file is checked first: one with a loop, a missing node or a broken consent rule is refused whole."
+        to "هنوز گراف هدفی نیست. از روی هدف‌هایی که در Chronos تنظیم کرده‌ای بساز، یا یک فایل JSON گراف وارد کن. فایل اول بررسی می‌شود: فایلی با حلقه، گرهٔ گم‌شده یا قاعدهٔ رضایتِ شکسته کامل رد می‌شود.",
+    "A goal graph is already here."
+        to "یک گراف هدف از قبل اینجاست.",
+    "Set up at least one goal with its work in Setup first."
+        to "اول در تنظیمات دست‌کم یک هدف با کارهایش تنظیم کن.",
+    "Your goal graph is made from your goals. It grows from here."
+        to "گراف هدفت از روی هدف‌هایت ساخته شد. از اینجا رشد می‌کند.",
+    "The goal graph could not be made."
+        to "گراف هدف ساخته نشد.",
 )

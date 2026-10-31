@@ -1,5 +1,10 @@
 # Chronos — how the code is laid out
 
+Two editions (31 Oct 2026): `personal` (`com.chronos`, the owner's phone) and `public` (`com.chronos.planner`, to give
+to others — its own data, starts empty, a goal graph made from each person's own goals by `StarterGraph`, auto-triggers
+off by default, signed with a release key kept outside the repository in `keystore.properties`). Build them with
+`./gradlew :app:assemblePersonalDebug` and `./gradlew :app:assemblePublicRelease`.
+
 Two Gradle modules:
 
 - **`:app`**: the Android app. Screens, database, background work, and the Chronos planning engine (plain
@@ -73,5 +78,9 @@ Inside `:app` the code is grouped by what you do with the app. Under every scree
 10. **Colours come from `Palette`, read when drawn** (light and dark): never a colour fixed in a top-level `val`.
 11. **An edit gives the screens a fresh `Config`** (`ChronosViewModel.edit` copies), and edit lambdas change the
     config they are handed, never an object captured from the old one.
-12. **What you write is never lost to the network.** A message to a model is kept on the phone first and sent in
+12. **A model's answer is data, never authority**: links from it open only if they are web pages, text shared
+    from other apps only answers a waiting question and goes through the same checks, and nothing is applied
+    without your approval. Every connection is HTTPS (`network_security_config`), and backups leave the
+    encrypted keys behind.
+13. **What you write is never lost to the network.** A message to a model is kept on the phone first and sent in
    the background (`Outbox`, WorkManager); a failure is shown with its reason, to send again or edit.

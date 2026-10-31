@@ -278,8 +278,10 @@ object LlmClient {
 
     // ------------------------------------------------------- OpenAI-compatible
 
-    private fun open(url: String, apiKey: String, method: String): HttpURLConnection =
-        (URL(url).openConnection() as HttpURLConnection).apply {
+    private fun open(url: String, apiKey: String, method: String): HttpURLConnection {
+        // The key goes in a header: never to an address that is not HTTPS (31 Oct 2026).
+        require(url.startsWith("https://", ignoreCase = true)) { "Only HTTPS addresses are used: $url is not one." }
+        return (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = method
             connectTimeout = 30_000
             readTimeout = 180_000
@@ -288,6 +290,7 @@ object LlmClient {
             // OpenRouter asks apps to name themselves; nothing about the user is in it.
             if (url.contains("openrouter.ai")) setRequestProperty("X-Title", "Chronos")
         }
+    }
 
     private fun readBody(c: HttpURLConnection): String {
         val code = c.responseCode
@@ -566,7 +569,9 @@ class LlmSettings(private val context: Context) {
      * the daily ceiling and the cooldowns still hold, and every answer waits for you.
      */
     var autoTriggers: Boolean
-        get() = prefs.getBoolean("autoTriggers", true)
+        // On by default in your edition (your choice); off in the one for others until they turn it on,
+        // so nothing is sent to a provider without them asking first (31 Oct 2026).
+        get() = prefs.getBoolean("autoTriggers", !com.chronos.BuildConfig.PUBLIC_EDITION)
         set(v) = prefs.edit().putBoolean("autoTriggers", v).apply()
 
     /** The spec's example ceiling on calls per day, across all triggers. */

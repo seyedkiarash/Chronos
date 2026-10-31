@@ -78,8 +78,11 @@ internal fun counts(nav: NavigatorViewModel): HomeCounts {
 internal fun NavigatorHome(nav: NavigatorViewModel) {
     Text(tr("Navigator"), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(vertical = 4.dp))
     if (nav.graph == null) {
-        Hint("No goal graph yet: import one in Settings.")
-        Button(onClick = { nav.page = NavPage.SETTINGS }) { Text("Open Settings") }
+        // A new person starts from their own goals (31 Oct 2026); a graph file can still be imported.
+        Hint("No goal graph yet. Make one from the goals you set up in Chronos — each goal and the work under it " +
+             "become its first nodes, and the Navigator breaks them down further with you — or import a graph file in Settings.")
+        Button(onClick = { nav.startGraphFromGoals() }, enabled = !nav.busy) { Text("Make it from my goals") }
+        TextButton(onClick = { nav.page = NavPage.SETTINGS }) { Text("Open Settings") }
         return
     }
     CrewPanel(nav, compact = true)

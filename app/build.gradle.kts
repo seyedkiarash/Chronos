@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -20,11 +22,43 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Two editions (31 Oct 2026). "personal" is the app on your phone, as it was: same package, same data.
+    // "public" is the one to give to others: its own package, so it installs beside yours with its own
+    // empty data, and no goal graph — each person makes theirs from their own goals.
+    flavorDimensions += "edition"
+    productFlavors {
+        create("personal") {
+            dimension = "edition"
+            applicationId = "com.chronos"
+            buildConfigField("boolean", "PUBLIC_EDITION", "false")
+        }
+        create("public") {
+            dimension = "edition"
+            applicationId = "com.chronos.planner"
+            versionNameSuffix = "-public"
+            buildConfigField("boolean", "PUBLIC_EDITION", "true")
+        }
+    }
+
+    // The release key lives outside the repository: keystore.properties (never committed) names it.
+    val signing = rootProject.file("keystore.properties").takeIf { it.exists() }?.let { f ->
+        Properties().apply { f.inputStream().use { load(it) } }
+    }
+    signingConfigs {
+        if (signing != null) create("release") {
+            storeFile = file(signing.getProperty("storeFile"))
+            storePassword = signing.getProperty("storePassword")
+            keyAlias = signing.getProperty("keyAlias")
+            keyPassword = signing.getProperty("keyPassword")
+        }
+    }
+
     buildTypes {
         release {
             optimization {
                 enable = false
             }
+            if (signing != null) signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
@@ -34,6 +68,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     packaging {
         // The Anthropic SDK's HTTP libraries each carry the same licence notices.

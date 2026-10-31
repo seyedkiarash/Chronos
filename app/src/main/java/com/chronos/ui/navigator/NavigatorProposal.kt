@@ -38,6 +38,13 @@ private fun statusColor(s: String) = when (s) {
 }
 
 /** The proposals inbox: a short row each; a tap opens the page. */
+/**
+ * Whether a source a model named may be opened (31 Oct 2026): only a web page. A model's answer is
+ * data, not authority — an intent:, file: or javascript: link in it is never followed.
+ */
+internal fun webLink(url: String?): Boolean =
+    url != null && Regex("^https?://[^\\s]+$", RegexOption.IGNORE_CASE).matches(url.trim())
+
 @Composable
 internal fun InboxPanel(nav: NavigatorViewModel) {
     // Two spaces (your request of 29 Oct 2026): answers to what you asked, and what the app or the model
@@ -221,7 +228,7 @@ internal fun ProposalPage(nav: NavigatorViewModel, id: String) {
             Text(tr("Sources"), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 4.dp))
             p.sources().forEach { s ->
                 Text(s.url() + (s.usedFor()?.let { " — $it" } ?: ""), style = MaterialTheme.typography.labelSmall, color = Palette.Steel,
-                    modifier = Modifier.clickable { runCatching { uri.openUri(s.url()) } })
+                    modifier = Modifier.clickable { if (webLink(s.url())) runCatching { uri.openUri(s.url()) } })
             }
         }
         if (p.checks().isNotEmpty()) Hint(tr("Checks passed") + ": " + p.checks().joinToString(", "))

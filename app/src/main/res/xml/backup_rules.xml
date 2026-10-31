@@ -1,13 +1,12 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Android 11 and older (31 Oct 2026). Your plan, log and conversations are backed up, so a new phone
+   gets them back. The API keys are not: they are encrypted with a key that never leaves this phone's
+   Keystore, so on another phone they could not be opened anyway — you enter them again there.
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <include domain="database" path="." />
+    <include domain="file" path="." />
+    <include domain="sharedpref" path="." />
+    <exclude domain="sharedpref" path="chronos.llm.xml" />
 </full-backup-content>

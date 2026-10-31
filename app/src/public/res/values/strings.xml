@@ -1,0 +1,5 @@
+<resources>
+    <!-- The edition for others (31 Oct 2026): its own name, so it is told apart from yours on one phone. -->
+    <string name="app_name">Chronos Planner</string>
+    <string name="share_to_navigator">Chronos Planner navigator</string>
+</resources>

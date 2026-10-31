@@ -656,6 +656,29 @@ class NavigatorViewModel(private val app: Application) : AndroidViewModel(app) {
         load()
     }
 
+    /**
+     * A first goal graph made from the goals set up in Chronos (31 Oct 2026): what a new person
+     * starts from instead of a graph file. It is checked like any import; a graph already there stays.
+     */
+    fun startGraphFromGoals() = work {
+        if (store.load() != null) { message = "A goal graph is already here."; return@work }
+        val cfg = repo.loadConfig()
+        val work = cfg.goals.mapNotNull { t ->
+            val a = com.chronos.engine.Umbrellas.activityOf(cfg, t) ?: return@mapNotNull null
+            if (a.archived || cfg.over(a, ChronosRepository.logicalToday())) return@mapNotNull null
+            com.chronos.navigator.model.StarterGraph.Work(t.groupName ?: t.name, t.name ?: a.name, a.name?.trim(),
+                t.mode == com.chronos.model.Enums.GoalMode.CLOSED, t.deadline, t.totalUnits, t.doneUnits, t.unit,
+                t.hoursPerUnit, t.weeklyFloorH, t.maxPerDayH, t.hard)
+        }
+        val today = ChronosRepository.logicalToday()
+        val json = com.chronos.navigator.model.StarterGraph.json(work, today, java.time.ZoneId.systemDefault().id)
+        if (json == null) { message = "Set up at least one goal with its work in Setup first."; return@work }
+        val result = store.importGraph(json, com.chronos.navigator.model.StarterGraph.fileName(today))
+        refused = if (result.ok()) emptyList() else result.invalid()
+        message = if (result.ok()) "Your goal graph is made from your goals. It grows from here." else "The goal graph could not be made."
+        load()
+    }
+
     private fun displayName(uri: Uri): String? =
         app.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { c ->
             if (c.moveToFirst()) c.getString(0) else null

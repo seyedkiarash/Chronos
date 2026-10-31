@@ -40,7 +40,9 @@ class MainActivity : ComponentActivity() {
             android.content.Intent.ACTION_PROCESS_TEXT -> intent.getCharSequenceExtra(android.content.Intent.EXTRA_PROCESS_TEXT)?.toString()
             else -> null
         }
-        if (!text.isNullOrBlank()) nav.receiveShared(text)
+        // Text from another app is data: it only answers a question you are waiting on, is checked like any
+        // answer, and changes nothing until you approve it. A reply longer than any chat's is not taken in.
+        if (!text.isNullOrBlank() && text.length <= 200_000) nav.receiveShared(text)
         // Handled once: turning the phone must not deliver it again.
         intent?.action = null
     }

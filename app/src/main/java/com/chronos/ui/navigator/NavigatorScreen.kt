@@ -83,8 +83,9 @@ private fun ImportPanel(nav: NavigatorViewModel) {
         val info = nav.info
         val g = nav.graph
         if (info == null || g == null) {
-            Hint("No goal graph yet. Import the goal-graph JSON file (for example goal-graph-v0.2.json). " +
-                 "It is checked first: a file with a loop, a missing node or a broken consent rule is refused whole.")
+            Hint("No goal graph yet. Make one from the goals you set up in Chronos, or import a goal-graph JSON file. " +
+                 "A file is checked first: one with a loop, a missing node or a broken consent rule is refused whole.")
+            OutlinedButton(onClick = { nav.startGraphFromGoals() }, enabled = !nav.busy) { Text("Make it from my goals") }
         } else {
             Text(g.title ?: info.fileName ?: "")
             Hint(tr("Version") + " " + (info.schemaVersion ?: "?") + "  ·  " +

@@ -106,7 +106,7 @@ private fun ProposalCard(nav: NavigatorViewModel, p: com.chronos.navigator.store
             Text(tr("Sources"), style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(top = 4.dp))
             p.sources().forEach { s ->
                 Text(s.url(), style = MaterialTheme.typography.labelSmall, color = Palette.Steel,
-                    modifier = Modifier.clickable { runCatching { uri.openUri(s.url()) } })
+                    modifier = Modifier.clickable { if (webLink(s.url())) runCatching { uri.openUri(s.url()) } })
             }
         }
         if (p.checks().isNotEmpty()) Hint(tr("Checks passed") + ": " + p.checks().joinToString(", "))

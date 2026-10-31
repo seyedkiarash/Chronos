@@ -179,6 +179,7 @@ object Reminders {
         }
         val b = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_menu_edit)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setContentTitle(title).setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setContentIntent(openLog(context)).setAutoCancel(true)
@@ -197,6 +198,7 @@ object Reminders {
         channel(context)
         val b = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_menu_edit)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setContentTitle("Chronos").setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setAutoCancel(true).setOnlyAlertOnce(true)
