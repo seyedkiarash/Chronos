@@ -54,8 +54,8 @@ public class GraphImportTest {
     }
 
     /** The Chronos activities that existed on 30 Sep 2026, as the export lists them. */
-    static final Set<String> CHRONOS = Set.of("watching convex videos", "reading gsp", "reading cs",
-        "studying english", "studying korean", "planning");
+    static final Set<String> CHRONOS = Set.of("watching course videos", "reading course a", "reading course b",
+        "studying language a", "studying language b", "side project");
 
     @Test
     public void theRealFileImports() {
@@ -67,26 +67,26 @@ public class GraphImportTest {
         assertEquals(6, g.regimes.size());
         assertEquals(5, (int) g.riskTolerance);
 
-        var convex = g.node("T_CONVEX");
-        assertEquals(NodeType.TASK, convex.type);
-        assertEquals(Owner.ADVISOR, convex.owner);
-        assertEquals(30.0, convex.unitsTotal, 0);
-        assertEquals(9.0, convex.unitsDone, 0);
-        assertEquals(2.0, convex.perUnitPrior, 0);
-        assertEquals(LocalDate.parse("2026-10-12"), convex.deadline);
-        assertTrue(convex.hardDeadline);
-        assertEquals(List.of("watching convex videos"), convex.activities);
+        var course = g.node("T_VIDEOS");
+        assertEquals(NodeType.TASK, course.type);
+        assertEquals(Owner.ADVISOR, course.owner);
+        assertEquals(30.0, course.unitsTotal, 0);
+        assertEquals(9.0, course.unitsDone, 0);
+        assertEquals(2.0, course.perUnitPrior, 0);
+        assertEquals(LocalDate.parse("2026-10-12"), course.deadline);
+        assertTrue(course.hardDeadline);
+        assertEquals(List.of("watching course videos"), course.activities);
 
-        assertEquals(List.of("reading gsp", "reading cs"), g.node("STR_COURSES").activities);
-        assertTrue(g.edges.contains(new Edge("T_CONVEX", "ADV_TRACK", EdgeKind.CHILD, -1, null)));
-        assertTrue(g.edges.contains(new Edge("T_OUTREACH", "G_INTERN", EdgeKind.OR_GROUP, 0, null)));
-        assertTrue(g.edges.contains(new Edge("T_APPLY_PROG", "G_INTERN", EdgeKind.OR_GROUP, 1, null)));
-        assertTrue(g.edges.contains(new Edge("T_REPORT", "SK_EN", EdgeKind.CREDIT, -1, 0.7)));
+        assertEquals(List.of("reading course A", "reading course B"), g.node("STR_CLASSES").activities);
+        assertTrue(g.edges.contains(new Edge("T_VIDEOS", "MENTOR_TRACK", EdgeKind.CHILD, -1, null)));
+        assertTrue(g.edges.contains(new Edge("T_CONTACT", "G_INTERN", EdgeKind.OR_GROUP, 0, null)));
+        assertTrue(g.edges.contains(new Edge("T_APPLY_SCHOOL", "G_INTERN", EdgeKind.OR_GROUP, 1, null)));
+        assertTrue(g.edges.contains(new Edge("T_REPORT", "SK_LANG1", EdgeKind.CREDIT, -1, 0.7)));
 
         assertFalse(g.node("G_NETWORK").plannable());
         assertTrue(g.node("G_PARTNER").plannable());
-        assertNotNull(g.regime("SPRINT_CONVEX").overlayOn);
-        assertEquals(5.5, g.regime("SPRINT_CONVEX").plannedHPerDay.get("T_CONVEX"), 0);
+        assertNotNull(g.regime("SPRINT_A").overlayOn);
+        assertEquals(5.5, g.regime("SPRINT_A").plannedHPerDay.get("T_VIDEOS"), 0);
     }
 
     @Test
@@ -95,7 +95,7 @@ public class GraphImportTest {
         assertEquals(Source.USER, g.params.get("adherence").source);
         assertEquals(16.0, g.params.get("adherence").get("a"), 0);
         assertEquals(Source.EXPLICIT_PRIOR, g.params.get("bias.default").source);
-        assertEquals(Source.DATA, g.params.get("bias.watching convex videos").source);
+        assertEquals(Source.DATA, g.params.get("bias.watching course videos").source);
         assertEquals(8.0, g.params.get("capacity.IDEAL").get("mean"), 0);
         // Constants of the spec are seeded and labelled as such.
         assertEquals(Source.EXPLICIT_PRIOR, g.params.get("forgetting.lambda").source);
@@ -111,25 +111,25 @@ public class GraphImportTest {
         Set<String> blocking = issues.stream().filter(i -> i.severity() == Severity.BLOCKING)
             .map(i -> i.fix() + ":" + i.subject()).collect(Collectors.toSet());
         assertTrue(blocking.contains("NODE_EFFORT:T_PRODUCT"));
-        assertTrue(blocking.contains("NODE_PRIOR:MS_GRADES"));
+        assertTrue(blocking.contains("NODE_PRIOR:MS_MARKS"));
         assertTrue(blocking.contains("REGIME_GAP:2027-02-11..2032-09-30"));
         assertTrue(blocking.contains("PARAM:capacity.IDEAL"));
-        // pytorch and the survey are paused by the convex sprint: named, not blocking yet.
+        // tools and the survey are paused by the course sprint: named, not blocking yet.
         assertTrue(issues.stream().anyMatch(i -> i.fix() == Fix.LINK_ACTIVITY
-            && i.subject().equals("SK_TORCH|pytorch audio") && i.severity() == Severity.WARNING));
+            && i.subject().equals("SK_TOOLS|tools practice") && i.severity() == Severity.WARNING));
         assertFalse(Requirements.canRun(issues));
 
         // Linking clears the link issue.
         List<Issue> linked = Requirements.check(g, LocalDate.parse("2026-10-03"), CHRONOS,
-            Map.of(Requirements.linkKey("SK_TORCH", "pytorch audio"), "planning"));
-        assertFalse(linked.stream().anyMatch(i -> i.subject().equals("SK_TORCH|pytorch audio")));
+            Map.of(Requirements.linkKey("SK_TOOLS", "tools practice"), "side project"));
+        assertFalse(linked.stream().anyMatch(i -> i.subject().equals("SK_TOOLS|tools practice")));
     }
 
     @Test
-    public void afterTheSprintPytorchBlocks() {
+    public void afterTheSprintToolsBlocks() {
         Graph g = real();
         List<Issue> issues = Requirements.check(g, LocalDate.parse("2026-10-13"), CHRONOS, Map.of());
-        assertTrue(issues.stream().anyMatch(i -> i.subject().equals("SK_TORCH|pytorch audio")
+        assertTrue(issues.stream().anyMatch(i -> i.subject().equals("SK_TOOLS|tools practice")
             && i.severity() == Severity.BLOCKING));
     }
 
@@ -150,7 +150,7 @@ public class GraphImportTest {
 
         long now = 2L;
         params.add(Overrides.answer(Overrides.nodeKey("T_PRODUCT", "effort"), Dist.LOGNORMAL, "", now, "p50", 200, "p90", 500));
-        params.add(Overrides.answer(Overrides.nodeKey("MS_GRADES", "success"), Dist.BETA, "", now, "a", 7, "b", 3));
+        params.add(Overrides.answer(Overrides.nodeKey("MS_MARKS", "success"), Dist.BETA, "", now, "a", 7, "b", 3));
         params.add(Overrides.answer(Overrides.regimeKey("TERM_LATER", "span"), Dist.POINT, "", now,
             "from", LocalDate.parse("2027-02-11").toEpochDay(), "to", LocalDate.parse("2032-09-30").toEpochDay()));
         params.add(Overrides.answer(Overrides.regimeKey("TERM_LATER", "mix"), Dist.DIRICHLET, "", now,
@@ -199,7 +199,7 @@ public class GraphImportTest {
         JsonObject root = root();
         JsonArray deps = new JsonArray();
         deps.add("T_CV");
-        nodeOf(root, "T_REPRO").add("depends_on", deps);   // T_CV → … → T_REPRO → … → T_CV
+        nodeOf(root, "T_PROTOTYPE").add("depends_on", deps);   // T_CV → … → T_PROTOTYPE → … → T_CV
         List<Issue> out = refused(root);
         assertTrue(out.stream().anyMatch(i -> i.message().startsWith("The graph has a loop")));
     }
@@ -221,17 +221,17 @@ public class GraphImportTest {
     @Test
     public void nothingMaySitUnderAnUnplannableNode() {
         JsonObject root = root();
-        nodeOf(root, "T_LABLIST").addProperty("parent", "G_NETWORK");
+        nodeOf(root, "T_SHORTLIST").addProperty("parent", "G_NETWORK");
         assertFalse(refused(root).isEmpty());
     }
 
     @Test
     public void badNumbersAreRefused() {
         JsonObject root = root();
-        nodeOf(root, "T_REPRO").getAsJsonObject("effort").addProperty("total_h_p90", 10);   // below p50 = 50
+        nodeOf(root, "T_PROTOTYPE").getAsJsonObject("effort").addProperty("total_h_p90", 10);   // below p50 = 50
         nodeOf(root, "SK_LANG2").getAsJsonObject("level").addProperty("to", 12);
         List<Issue> out = refused(root);
-        assertTrue(out.stream().anyMatch(i -> i.subject().equals("T_REPRO")));
+        assertTrue(out.stream().anyMatch(i -> i.subject().equals("T_PROTOTYPE")));
         assertTrue(out.stream().anyMatch(i -> i.subject().equals("SK_LANG2")));
     }
 

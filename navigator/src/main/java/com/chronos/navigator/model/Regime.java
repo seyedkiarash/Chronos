@@ -10,7 +10,7 @@ import java.util.Map;
 
 /**
  * A stretch of the calendar with its own mix of day types (EARLY, MIDTERM, …),
- * or an overlay on one (SPRINT_CONVEX) that changes how hours are spent
+ * or an overlay on one (a sprint) that changes how hours are spent
  * without changing what kind of days they are.
  */
 public class Regime {

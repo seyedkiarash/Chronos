@@ -356,6 +356,16 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
         prefs.edit().putString("theme", value.code).apply()
     }
 
+    /** The optional lock (31 Oct 2026): the phone's own fingerprint or screen lock, asked on opening and after a minute away. */
+    var lockOn by mutableStateOf(prefs.getBoolean("lock", false)); private set
+    /** Whether the app is locked now: its screens are not drawn until the phone's lock is given. */
+    var locked by mutableStateOf(prefs.getBoolean("lock", false))
+    /** Screens kept out of screenshots and the recent-apps view; on unless you turn it off. */
+    var hideScreens by mutableStateOf(prefs.getBoolean("hideScreens", true)); private set
+
+    fun setLock(on: Boolean) { lockOn = on; prefs.edit().putBoolean("lock", on).apply() }
+    fun hideScreensOn(on: Boolean) { hideScreens = on; prefs.edit().putBoolean("hideScreens", on).apply() }
+
     private val dayCache = mutableStateMapOf<LocalDate, DaySequencer.Result>()
     private val requested = mutableSetOf<LocalDate>()
 

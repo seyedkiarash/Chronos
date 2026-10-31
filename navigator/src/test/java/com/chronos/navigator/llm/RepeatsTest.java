@@ -30,19 +30,19 @@ public class RepeatsTest {
 
     @Test
     public void theSameChangeInOtherWordsIsTheSame() {
-        List<Op> a = List.of(pause("Language B", "to fund the exam"), effort("SK_EN_TEST", 40.0));
-        List<Op> b = List.of(effort("SK_EN_TEST", 40.001), pause("Language B", "frees hours for the exam"));
+        List<Op> a = List.of(pause("Language B", "to fund the exam"), effort("MS_LANG1_TEST", 40.0));
+        List<Op> b = List.of(effort("MS_LANG1_TEST", 40.001), pause("Language B", "frees hours for the exam"));
         assertTrue(Repeats.same(a, b));
-        assertFalse("another number is another change", Repeats.same(a, List.of(pause("Language B", "x"), effort("SK_EN_TEST", 55.0))));
+        assertFalse("another number is another change", Repeats.same(a, List.of(pause("Language B", "x"), effort("MS_LANG1_TEST", 55.0))));
         assertFalse("nothing repeats nothing", Repeats.same(List.of(), List.of()));
     }
 
     @Test
     public void aNewerProposalThatChangesEverythingAnOlderOneDoesCoversIt() {
         List<Op> older = List.of(pause("Language B", "x"));
-        List<Op> newer = List.of(pause("Language B", "y"), effort("SK_EN_TEST", 30.0));
+        List<Op> newer = List.of(pause("Language B", "y"), effort("MS_LANG1_TEST", 30.0));
         assertTrue(Repeats.covers(newer, older));
         assertFalse("the older one does not cover the newer", Repeats.covers(older, newer));
-        assertFalse("different things", Repeats.covers(List.of(effort("T_EXT", 50.0)), older));
+        assertFalse("different things", Repeats.covers(List.of(effort("T_EXTENSION", 50.0)), older));
     }
 }

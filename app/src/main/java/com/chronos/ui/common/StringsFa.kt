@@ -3556,4 +3556,22 @@ internal val Fa: Map<String, String> = mapOf(
         to "گراف هدفت از روی هدف‌هایت ساخته شد. از اینجا رشد می‌کند.",
     "The goal graph could not be made."
         to "گراف هدف ساخته نشد.",
+    "Privacy"
+        to "حریم خصوصی",
+    "Lock the app"
+        to "قفل برنامه",
+    "Asks for your fingerprint or the phone's screen lock when Chronos opens and after a minute away. Reminders still arrive; what they show stays private on the lock screen."
+        to "وقتی Chronos باز می‌شود و بعد از یک دقیقه دوری، اثر انگشت یا قفل صفحهٔ گوشی را می‌خواهد. یادآورها همچنان می‌رسند و محتوایشان روی صفحهٔ قفل خصوصی می‌ماند.",
+    "Set a screen lock on the phone first: the app uses the phone's own lock, and keeps nothing of it."
+        to "اول برای گوشی قفل صفحه بگذار: برنامه از قفل خود گوشی استفاده می‌کند و چیزی از آن نگه نمی‌دارد.",
+    "Hide from screenshots"
+        to "پنهان از اسکرین‌شات",
+    "Screenshots and screen recordings of Chronos come out blank, and the recent-apps view shows no content."
+        to "اسکرین‌شات و فیلم‌برداری از صفحهٔ Chronos سیاه می‌شود و فهرست برنامه‌های اخیر محتوایش را نشان نمی‌دهد.",
+    "Chronos is locked"
+        to "Chronos قفل است",
+    "Use your fingerprint or the phone's screen lock to open it."
+        to "برای باز کردنش از اثر انگشت یا قفل صفحهٔ گوشی استفاده کن.",
+    "Unlock"
+        to "باز کردن",
 )

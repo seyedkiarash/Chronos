@@ -33,7 +33,7 @@ public class LlmLayerTest {
         Graph g = GraphImportTest.real();
         for (LlmRequest r : List.of(ask(g, Fix.REGIME_GAP, "2027-02-11..2032-09-30"),
                                     ask(g, Fix.NODE_EFFORT, "T_PRODUCT"),
-                                    ask(g, Fix.NODE_PRIOR, "MS_GRADES"))) {
+                                    ask(g, Fix.NODE_PRIOR, "MS_MARKS"))) {
             for (String hidden : List.of("G_NETWORK", "A_PITCH", "G_PARTNER"))
                 assertFalse(hidden + " must not be sent", r.user().contains(hidden));
             assertFalse("no log is sent", r.user().contains("SESSION"));
@@ -92,14 +92,14 @@ public class LlmLayerTest {
         assertTrue(reasonFor(g, effort, "{\"p50_hours\":300,\"p90_hours\":100," + SELF + "}").contains("below"));
         assertTrue(reasonFor(g, effort, "{\"p50_hours\":-1,\"p90_hours\":100," + SELF + "}").contains("above zero"));
 
-        LlmRequest prior = ask(g, Fix.NODE_PRIOR, "MS_GRADES");
+        LlmRequest prior = ask(g, Fix.NODE_PRIOR, "MS_MARKS");
         assertTrue(reasonFor(g, prior, "{\"probability\":1.4,\"strength_cases\":5," + SELF + "}").contains("between 0 and 1"));
     }
 
     @Test
     public void anAdvisorNodeIsOnlyEverDiscussed() {
         Graph g = GraphImportTest.real();
-        LlmRequest r = ask(g, Fix.NODE_EFFORT, "T_CONVEX");
+        LlmRequest r = ask(g, Fix.NODE_EFFORT, "T_VIDEOS");
         ProposalValidator.Result v = ProposalValidator.validate(g, TODAY, r,
             "{\"p50_hours\":40,\"p90_hours\":60," + SELF + "}", List.of());
         assertTrue(v.ok());

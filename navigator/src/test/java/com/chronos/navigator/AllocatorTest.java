@@ -29,11 +29,11 @@ public class AllocatorTest {
     }
 
     @Test
-    public void duringTheSprintConvexGetsWhatWasPlanned() {
+    public void duringTheSprintCourseGetsWhatWasPlanned() {
         Allocator.Result r = week(LocalDate.parse("2026-10-06"));
         print(r);
-        Allocator.Line convex = r.lines().stream().filter(l -> l.nodeId().equals("T_CONVEX")).findFirst().orElseThrow();
-        assertTrue("at least the sprint's 5.5 h a day for the days left in it", convex.hours() >= 5.5 * 5);
+        Allocator.Line course = r.lines().stream().filter(l -> l.nodeId().equals("T_VIDEOS")).findFirst().orElseThrow();
+        assertTrue("at least the sprint's 5.5 h a day for the days left in it", course.hours() >= 5.5 * 5);
         double total = r.lines().stream().mapToDouble(Allocator.Line::hours).sum();
         assertTrue("never more than the week holds, beyond the sprint's own plan",
             total <= r.capacityH() + r.overH() + 1e-6 + 0.25 * r.lines().size());
@@ -43,7 +43,7 @@ public class AllocatorTest {
     public void afterTheSprintTheSupportWorkComesBack() {
         Allocator.Result r = week(LocalDate.parse("2026-10-14"));
         print(r);
-        assertTrue(r.lines().stream().anyMatch(l -> l.nodeId().equals("SK_TORCH") || l.nodeId().equals("T_SURVEY")));
+        assertTrue(r.lines().stream().anyMatch(l -> l.nodeId().equals("SK_TOOLS") || l.nodeId().equals("T_READING")));
         assertTrue("well under a few seconds on a desktop", r.millis() < 20000);
     }
 

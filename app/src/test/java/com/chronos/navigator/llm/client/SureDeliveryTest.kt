@@ -58,8 +58,8 @@ class SureDeliveryTest {
 
     @Test
     fun anAnswerCutOffInItsJsonIsShownAsWords() {
-        val cut = "{\"message\": \"Your advisor's suggestion fits: \\\"T_EXT\\\" is where it lives.\",\"summary\": \"x\", \"questions\": [\"Is it"
-        assertEquals("Your advisor's suggestion fits: \"T_EXT\" is where it lives.\n\n(The rest of this answer was cut off.)",
+        val cut = "{\"message\": \"Your advisor's suggestion fits: \\\"T_EXTENSION\\\" is where it lives.\",\"summary\": \"x\", \"questions\": [\"Is it"
+        assertEquals("Your advisor's suggestion fits: \"T_EXTENSION\" is where it lives.\n\n(The rest of this answer was cut off.)",
             CrewRun.readable(cut))
         assertEquals("plain words stay", "Plain words.", CrewRun.readable("Plain words."))
         val whole = "{\"message\":\"ok\"}"

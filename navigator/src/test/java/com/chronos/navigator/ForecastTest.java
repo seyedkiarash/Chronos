@@ -33,7 +33,7 @@ public class ForecastTest {
         List<JsonObject> regimes = g.regimes.stream().map(r -> r.raw).toList();
         List<Param> params = new ArrayList<>(g.params.values());
         params.add(Overrides.answer(Overrides.nodeKey("T_PRODUCT", "effort"), Dist.LOGNORMAL, "", 1, "p50", 260, "p90", 650));
-        params.add(Overrides.answer(Overrides.nodeKey("MS_GRADES", "success"), Dist.BETA, "", 1, "a", 4.5, "b", 0.5));
+        params.add(Overrides.answer(Overrides.nodeKey("MS_MARKS", "success"), Dist.BETA, "", 1, "a", 4.5, "b", 0.5));
         params.add(Overrides.answer(Overrides.regimeKey("LATER", "span"), Dist.POINT, "", 1,
             "from", LocalDate.parse("2027-02-11").toEpochDay(), "to", LocalDate.parse("2032-09-30").toEpochDay()));
         params.add(Overrides.answer(Overrides.regimeKey("LATER", "mix"), Dist.DIRICHLET, "", 1,
@@ -45,13 +45,13 @@ public class ForecastTest {
 
     static Inputs inputs() {
         Inputs in = new Inputs();
-        in.nodeActivities.put("T_CONVEX", List.of("watching convex videos"));
-        in.nodeActivities.put("STR_COURSES", List.of("reading gsp", "reading cs"));
-        in.nodeActivities.put("SK_EN", List.of("studying english"));
-        in.nodeActivities.put("SK_LANG2", List.of("studying korean"));
-        in.nodeActivities.put("STR_PLAN", List.of("planning"));
-        in.nodeActivities.put("SK_TORCH", List.of("learning pytorch"));
-        in.unitGoals.put("watching convex videos", new Inputs.UnitGoal(1.5, 13.5, 30.0));
+        in.nodeActivities.put("T_VIDEOS", List.of("watching course videos"));
+        in.nodeActivities.put("STR_CLASSES", List.of("reading course A", "reading course B"));
+        in.nodeActivities.put("SK_LANG1", List.of("studying language a"));
+        in.nodeActivities.put("SK_LANG2", List.of("studying language b"));
+        in.nodeActivities.put("STR_SIDE", List.of("planning"));
+        in.nodeActivities.put("SK_TOOLS", List.of("learning tools"));
+        in.unitGoals.put("watching course videos", new Inputs.UnitGoal(1.5, 13.5, 30.0));
         return in;
     }
 
@@ -78,10 +78,10 @@ public class ForecastTest {
         for (Forecaster.NodeResult n : r.nodes().values())
             System.out.printf("  %-14s P=%s reached=%.2f p50=%s critical=%.2f%n", n.id(),
                 n.pByDeadline() == null ? "  —  " : String.format("%.2f", n.pByDeadline()), n.pReached(), n.p50(), n.critical());
-        Forecaster.NodeResult convex = r.nodes().get("T_CONVEX");
-        assertNotNull(convex.pByDeadline());
+        Forecaster.NodeResult course = r.nodes().get("T_VIDEOS");
+        assertNotNull(course.pByDeadline());
         // 16.5 videos left at ~2.7 h each by 12 Oct, with the sprint's 5.5 h a day: a real race.
-        assertTrue("convex is neither certain nor hopeless", convex.pByDeadline() > 0.05 && convex.pByDeadline() < 0.95);
+        assertTrue("course is neither certain nor hopeless", course.pByDeadline() > 0.05 && course.pByDeadline() < 0.95);
         assertEquals("the graph's terminal can be reached in some futures", true, r.nodes().get("A_PITCH").pReached() >= 0);
         assertTrue("well under the 5 s budget on a desktop", r.millis() < 5000);
     }
@@ -96,7 +96,7 @@ public class ForecastTest {
         g.params.get("capacity.IDEAL").values.put("mean", 10.0);
         g.params.remove("post.capacity.IDEAL");
         Forecaster.Result more = Forecaster.run(g, in, TODAY, 2000, 11);
-        double p0 = base.nodes().get("T_CONVEX").pByDeadline(), p1 = more.nodes().get("T_CONVEX").pByDeadline();
+        double p0 = base.nodes().get("T_VIDEOS").pByDeadline(), p1 = more.nodes().get("T_VIDEOS").pByDeadline();
         assertTrue(p1 + 0.02 >= p0);
     }
 }

@@ -8,7 +8,7 @@ import com.chronos.ui.log.*
 import com.chronos.ui.navigator.*
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
@@ -27,7 +27,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     private val vm: ChronosViewModel by viewModels()
     private val nav: NavigatorViewModel by viewModels()
 
@@ -66,8 +66,41 @@ class MainActivity : ComponentActivity() {
                 LocalLayoutDirection provides
                     if (vm.lang.rtl) LayoutDirection.Rtl else LayoutDirection.Ltr
             ) {
-                ChronosTheme(vm.themeMode) { ChronosApp(vm, nav) }
+                ChronosTheme(vm.themeMode) {
+                    // Kept out of screenshots and the recent-apps view when chosen (31 Oct 2026).
+                    LaunchedEffect(vm.hideScreens) { Privacy.applySecure(this@MainActivity, vm.hideScreens) }
+                    if (vm.lockOn && vm.locked) LockScreen { askUnlock() } else ChronosApp(vm, nav)
+                }
             }
+        }
+    }
+
+    /** When the app was last left, to ask for the lock again after a minute away. */
+    private var leftAt = 0L
+    private var asking = false
+
+    override fun onStop() {
+        super.onStop()
+        if (!asking) leftAt = android.os.SystemClock.elapsedRealtime()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        Privacy.onCaptureChange = { runOnUiThread { Privacy.applySecure(this, vm.hideScreens) } }
+        Privacy.applySecure(this, vm.hideScreens)
+        if (vm.lockOn && leftAt > 0 && android.os.SystemClock.elapsedRealtime() - leftAt > Privacy.AWAY_MS) vm.locked = true
+        if (vm.lockOn && vm.locked) askUnlock()
+    }
+
+    /** The phone's own lock, once at a time. */
+    private fun askUnlock() {
+        if (asking) return
+        asking = true
+        val fa = vm.lang == Lang.Persian
+        Privacy.unlock(this, if (fa) "باز کردن Chronos" else "Unlock Chronos",
+            if (fa) "با اثر انگشت یا قفل صفحهٔ گوشی" else "With your fingerprint or the phone's screen lock") { ok ->
+            asking = false
+            if (ok) { vm.locked = false; leftAt = 0L }
         }
     }
 

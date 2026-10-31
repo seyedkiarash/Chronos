@@ -179,7 +179,7 @@ public class EstimatorTest {
                 planned, skipped, l.get("unitsFinished").isJsonNull() ? null : l.get("unitsFinished").getAsDouble(),
                 "GOAL".equals(kind.get(act))));
         }
-        in.nodeActivities.put("T_CONVEX", List.of("watching convex videos"));
+        in.nodeActivities.put("T_VIDEOS", List.of("watching course videos"));
         return in;
     }
 
@@ -196,17 +196,17 @@ public class EstimatorTest {
         double logSum = 0; int units = 0;
         for (Inputs.Session s : in.sessions) {
             if (s.planned() && s.goalWork()) { all++; if (!s.skipped()) done++; }
-            if (s.activity().equals("watching convex videos") && s.units() != null && s.units() > 0) {
+            if (s.activity().equals("watching course videos") && s.units() != null && s.units() > 0) {
                 logSum += Math.log((s.actualMin() / s.units()) / 60.0); units++;
             }
         }
         double rawAdherence = done / (double) all, rawBias = Math.exp(logSum / units);
-        Param bias = post.get("post.bias.watching convex videos");
-        System.out.printf("  raw adherence %.2f (%d of %d), raw convex bias %.2f over %d sessions%n",
+        Param bias = post.get("post.bias.watching course videos");
+        System.out.printf("  raw adherence %.2f (%d of %d), raw course bias %.2f over %d sessions%n",
             rawAdherence, done, all, rawBias, units);
-        System.out.printf("  posterior adherence %.3f, convex bias median %.2f (prior 2.0, transition weight 0.3)%n",
+        System.out.printf("  posterior adherence %.3f, course bias median %.2f (prior 2.0, transition weight 0.3)%n",
             post.get("post.adherence").get("mean"), bias.get("median"));
-        assertTrue("raw convex bias near 2.5", rawBias > 2.2 && rawBias < 2.8);
+        assertTrue("raw course bias near 2.5", rawBias > 2.2 && rawBias < 2.8);
         assertTrue("raw adherence near 70%", rawAdherence > 0.55 && rawAdherence < 0.8);
         assertTrue("the posterior sits between the prior and the data",
             bias.get("median") > 2.0 && bias.get("median") < rawBias);

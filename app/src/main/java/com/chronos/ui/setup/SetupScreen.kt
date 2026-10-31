@@ -119,6 +119,18 @@ private fun LanguagePanel(vm: ChronosViewModel) {
             }
         }
         Hint("The interface only. Your own words — goal names, activity names — are never translated.")
+        // Privacy (31 Oct 2026): an optional lock, and screens kept out of screenshots.
+        val context = androidx.compose.ui.platform.LocalContext.current
+        Text(tr("Privacy"), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 10.dp))
+        val canLock = remember { Privacy.canLock(context) }
+        Toggle("Lock the app", vm.lockOn, if (canLock)
+            "Asks for your fingerprint or the phone's screen lock when Chronos opens and after a minute away. " +
+            "Reminders still arrive; what they show stays private on the lock screen."
+            else "Set a screen lock on the phone first: the app uses the phone's own lock, and keeps nothing of it.") { on ->
+            if (!on || canLock) vm.setLock(on) }
+        Toggle("Hide from screenshots", vm.hideScreens,
+            "Screenshots and screen recordings of Chronos come out blank, and the recent-apps view shows no content.") { on ->
+            vm.hideScreensOn(on) }
         // Light or dark (29 Oct 2026).
         Text(tr("Appearance"), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 10.dp))
         FlowRowSimple {

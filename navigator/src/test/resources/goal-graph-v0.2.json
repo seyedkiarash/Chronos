@@ -1,7 +1,7 @@
 {
   "schema_version": "0.2",
   "meta": {
-    "title": "Sample goal graph (made up, for the tests)",
+    "title": "Sample goal graph (synthetic, for the tests)",
     "created": "2026-09-30",
     "timezone": "UTC",
     "calendar_note": "sample text",
@@ -43,18 +43,18 @@
     },
     "hard_constraints": {
       "sleep": {
-        "from": "22:30",
-        "to": "06:00",
+        "from": "23:00",
+        "to": "07:00",
         "min_hours": 7.5
       },
-      "courses_floor_h_per_week": 8,
       "workout": {
         "days": [
-          "Sat",
-          "Wed"
+          "Sun",
+          "Thu"
         ],
-        "minutes": 90
-      }
+        "minutes": 60
+      },
+      "classes_floor_h_per_week": 8
     },
     "llm_triggers": [
       {
@@ -113,15 +113,15 @@
         "note": "sample"
       },
       {
-        "id": "SPRINT_CONVEX",
+        "id": "SPRINT_A",
         "overlay_on": "EARLY",
         "from": "2026-10-01",
         "to": "2026-10-12",
         "note": "sample",
         "planned_h_per_day": {
-          "T_CONVEX": 5.5,
-          "STR_COURSES": 1.0,
-          "SK_EN": 0.5,
+          "T_VIDEOS": 5.5,
+          "STR_CLASSES": 1.0,
+          "SK_LANG1": 0.5,
           "SK_LANG2": 0.35
         }
       },
@@ -187,7 +187,7 @@
         "sigma": 0.35,
         "note": "sample text"
       },
-      "watching convex videos": {
+      "watching course videos": {
         "dist": "lognormal",
         "median": 2.47,
         "sigma": 0.35,
@@ -196,20 +196,20 @@
     },
     "energy_profile": {
       "peak": [
-        "09:00-11:00",
-        "17:00-18:00"
+        "10:00-12:00",
+        "16:00-17:00"
       ],
       "low": [
-        "06:00-08:00",
-        "15:00",
-        "18:00-19:30 after exercise"
+        "07:00-08:30",
+        "14:00",
+        "19:00-20:00 after sport"
       ],
-      "source": "64 check-ins, 6 days"
+      "source": "made up"
     },
     "deep_block_minutes": {
       "typical": [
-        90,
-        120
+        60,
+        90
       ],
       "max_stated_hours": [
         2,
@@ -217,16 +217,16 @@
       ]
     },
     "skills_now": {
-      "python": 4,
-      "pytorch_dl": 3,
-      "classical_dsp": 6,
-      "optimization": 6,
-      "prob_linalg": 6,
-      "music_theory": 1,
-      "music_production": 1,
-      "performance": 2,
-      "scientific_english": 5,
-      "korean": 3
+      "skill_a": 4,
+      "skill_b": 3,
+      "skill_c": 6,
+      "skill_d": 6,
+      "skill_e": 6,
+      "skill_f": 1,
+      "skill_g": 1,
+      "skill_h": 2,
+      "language_a": 5,
+      "language_b": 3
     },
     "resources": {
       "gpu": "sample text",
@@ -256,14 +256,14 @@
   },
   "nodes": [
     {
-      "id": "ADV_TRACK",
+      "id": "MENTOR_TRACK",
       "type": "EXTERNAL_TRACK",
       "owner": "advisor",
       "title": "Supervisor-led research track",
       "status": "active",
       "phase": "P1",
       "children": [
-        "T_CONVEX"
+        "T_VIDEOS"
       ],
       "note": "sample text",
       "ask_when": "sample text",
@@ -285,7 +285,7 @@
       "standalone_value": 0.95
     },
     {
-      "id": "STR_COURSES",
+      "id": "STR_CLASSES",
       "type": "STREAM",
       "title": "University coursework",
       "phase": "P0",
@@ -297,21 +297,21 @@
       "hard": true,
       "contributes_to": [
         {
-          "node": "MS_GRADES",
+          "node": "MS_MARKS",
           "coef": 1.0
         }
       ],
       "chronos": {
         "activity": [
-          "reading gsp",
-          "reading cs"
+          "reading course A",
+          "reading course B"
         ],
         "needs_high_focus": true
       },
       "owner": "user"
     },
     {
-      "id": "MS_GRADES",
+      "id": "MS_MARKS",
       "type": "MILESTONE",
       "title": "Keep grades above the target",
       "phase": "P0",
@@ -332,9 +332,9 @@
       "owner": "user"
     },
     {
-      "id": "SK_EN",
+      "id": "SK_LANG1",
       "type": "SKILL",
-      "title": "English (academic)",
+      "title": "Language A (academic)",
       "phase": "P0",
       "level": {
         "from": 5,
@@ -350,7 +350,7 @@
       },
       "dual_credit_from": [
         {
-          "node": "T_SURVEY",
+          "node": "T_READING",
           "coef": 0.5
         },
         {
@@ -359,7 +359,7 @@
         }
       ],
       "chronos": {
-        "activity": "studying English ",
+        "activity": "studying language A ",
         "needs_high_focus": false
       },
       "standalone_value": 0.9,
@@ -372,12 +372,12 @@
       }
     },
     {
-      "id": "SK_EN_TEST",
+      "id": "MS_LANG1_TEST",
       "type": "MILESTONE",
-      "title": "English test score",
+      "title": "Language A test score",
       "phase": "P3",
       "depends_on": [
-        "SK_EN"
+        "SK_LANG1"
       ],
       "window": {
         "earliest": "2027-05-01",
@@ -405,7 +405,7 @@
         "max_h_per_day": 0.5
       },
       "chronos": {
-        "activity": "Studying Korean ",
+        "activity": "studying language B ",
         "needs_high_focus": false
       },
       "standalone_value": 0.6,
@@ -431,7 +431,7 @@
       "soft": true
     },
     {
-      "id": "STR_PLAN",
+      "id": "STR_SIDE",
       "type": "STREAM",
       "title": "Planning",
       "phase": "P0",
@@ -440,13 +440,13 @@
         "max_h_per_day": 1.5
       },
       "chronos": {
-        "activity": "planning"
+        "activity": "side project"
       },
       "standalone_value": 0.7,
       "owner": "user"
     },
     {
-      "id": "T_CONVEX",
+      "id": "T_VIDEOS",
       "type": "TASK",
       "title": "Course videos (assigned)",
       "phase": "P1",
@@ -464,17 +464,17 @@
       },
       "contributes_to": [
         {
-          "node": "T_EXT",
+          "node": "T_EXTENSION",
           "coef": 0.3
         }
       ],
       "chronos": {
-        "activity": "watching convex videos",
+        "activity": "watching course videos",
         "needs_high_focus": true
       },
       "standalone_value": 0.8,
       "owner": "advisor",
-      "parent": "ADV_TRACK",
+      "parent": "MENTOR_TRACK",
       "units": {
         "total": 30,
         "done": 9,
@@ -513,7 +513,7 @@
       }
     },
     {
-      "id": "SK_TORCH",
+      "id": "SK_TOOLS",
       "type": "SKILL",
       "title": "Machine learning skills",
       "phase": "P1",
@@ -535,7 +535,7 @@
         "deadline": "2027-01-10"
       },
       "chronos": {
-        "activity": "pytorch audio",
+        "activity": "tools practice",
         "needs_high_focus": true,
         "windows": [
           "08:30-12:30",
@@ -548,21 +548,21 @@
       "owner": "system_suggested",
       "role": "support",
       "paused_during": [
-        "SPRINT_CONVEX"
+        "SPRINT_A"
       ],
       "contributes_to": [
         {
-          "node": "ADV_TRACK",
+          "node": "MENTOR_TRACK",
           "coef": 0.4
         },
         {
-          "node": "T_REPRO",
+          "node": "T_PROTOTYPE",
           "coef": 1.0
         }
       ]
     },
     {
-      "id": "T_SURVEY",
+      "id": "T_READING",
       "type": "TASK",
       "title": "Survey key papers",
       "phase": "P1",
@@ -575,18 +575,18 @@
         "deadline": "2026-11-10"
       },
       "chronos": {
-        "activity": "svs papers",
+        "activity": "field papers",
         "needs_high_focus": true
       },
       "standalone_value": 0.7,
       "owner": "system_suggested",
       "role": "support",
       "paused_during": [
-        "SPRINT_CONVEX"
+        "SPRINT_A"
       ]
     },
     {
-      "id": "T_LABLIST",
+      "id": "T_SHORTLIST",
       "type": "TASK",
       "title": "Shortlist labs",
       "phase": "P1",
@@ -602,19 +602,19 @@
       "owner": "system_suggested",
       "role": "support",
       "paused_during": [
-        "SPRINT_CONVEX"
+        "SPRINT_A"
       ]
     },
     {
-      "id": "T_REPRO",
+      "id": "T_PROTOTYPE",
       "type": "TASK",
       "title": "Reproduce a published model",
       "phase": "P2",
       "granularity": "medium",
       "expand_at": "2026-11-01",
       "depends_on": [
-        "SK_TORCH",
-        "T_SURVEY"
+        "SK_TOOLS",
+        "T_READING"
       ],
       "start_rule": "sample text",
       "effort": {
@@ -631,19 +631,19 @@
       "owner": "system_suggested",
       "role": "support",
       "paused_during": [
-        "SPRINT_CONVEX"
+        "SPRINT_A"
       ],
       "status": "proposed"
     },
     {
-      "id": "T_EXT",
+      "id": "T_EXTENSION",
       "type": "TASK",
       "title": "Extend the reproduction",
       "phase": "P2",
       "granularity": "coarse",
       "expand_at": "2026-12-01",
       "depends_on": [
-        "T_REPRO"
+        "T_PROTOTYPE"
       ],
       "effort": {
         "total_h_p50": 60,
@@ -658,7 +658,7 @@
       "owner": "system_suggested",
       "role": "support",
       "paused_during": [
-        "SPRINT_CONVEX"
+        "SPRINT_A"
       ]
     },
     {
@@ -668,7 +668,7 @@
       "phase": "P2",
       "depends_on": [],
       "soft_depends_on": [
-        "T_EXT"
+        "T_EXTENSION"
       ],
       "effort": {
         "total_h_p50": 20,
@@ -681,10 +681,10 @@
       "owner": "system_suggested",
       "any_of": [
         [
-          "ADV_TRACK"
+          "MENTOR_TRACK"
         ],
         [
-          "T_REPRO"
+          "T_PROTOTYPE"
         ]
       ]
     },
@@ -697,7 +697,7 @@
         "T_REPORT"
       ],
       "soft_depends_on": [
-        "ADV_TRACK"
+        "MENTOR_TRACK"
       ],
       "effort": {
         "total_h_p50": 10,
@@ -709,12 +709,12 @@
       "owner": "system_suggested"
     },
     {
-      "id": "T_OUTREACH",
+      "id": "T_CONTACT",
       "type": "TASK",
       "title": "Contact labs",
       "phase": "P2",
       "depends_on": [
-        "T_LABLIST",
+        "T_SHORTLIST",
         "T_CV"
       ],
       "effort": {
@@ -732,7 +732,7 @@
       "owner": "system_suggested"
     },
     {
-      "id": "T_APPLY_PROG",
+      "id": "T_APPLY_SCHOOL",
       "type": "TASK",
       "title": "Apply to summer programmes",
       "phase": "P2",
@@ -756,10 +756,10 @@
       "phase": "P2",
       "any_of": [
         [
-          "T_OUTREACH"
+          "T_CONTACT"
         ],
         [
-          "T_APPLY_PROG"
+          "T_APPLY_SCHOOL"
         ]
       ],
       "window": {
@@ -817,10 +817,10 @@
       "expand_at": "2027-03-01",
       "any_of": [
         [
-          "ADV_TRACK"
+          "MENTOR_TRACK"
         ],
         [
-          "T_EXT"
+          "T_EXTENSION"
         ],
         [
           "I_INTERN"
@@ -884,8 +884,8 @@
       "soft_depends_on": [
         "G_INTERN",
         "T_PAPER1",
-        "SK_EN_TEST",
-        "MS_GRADES"
+        "MS_LANG1_TEST",
+        "MS_MARKS"
       ],
       "effort": {
         "total_h_p50": 60,
@@ -920,7 +920,7 @@
       "title": "Bachelor graduation",
       "phase": "P4",
       "depends_on": [
-        "STR_COURSES"
+        "STR_CLASSES"
       ],
       "window": {
         "deadline": "2028-07-15"
@@ -1054,20 +1054,20 @@
       "BREAK": 35
     },
     "results": {
-      "baseline (convex 15, torch 10 h/wk, full-size repro)": {
-        "torch_L5_by_Nov10": 0.33,
+      "baseline (course 15, tools 10 h/wk, full-size repro)": {
+        "tools_L5_by_Nov10": 0.33,
         "package_by_Feb15": 0.54,
         "package_plus_ext": 0.28
       },
-      "chosen (convex 10, torch 13.5 h/wk, compact DDSP repro)": {
-        "torch_L5_by_Nov10": 0.51,
+      "chosen (course 10, tools 13.5 h/wk, compact model repro)": {
+        "tools_L5_by_Nov10": 0.51,
         "package_by_Feb15": 0.69,
         "package_plus_ext": 0.4
       },
-      "convex original deadline 2026-10-12, 21 videos": {
+      "course original deadline 2026-10-12, 21 videos": {
         "P_at_30h_per_week": 0.29
       },
-      "convex 21 videos by 2026-10-12, 5.5 h/day": {
+      "course 21 videos by 2026-10-12, 5.5 h/day": {
         "if_2.0h_per_video": 0.72,
         "if_2.47h_per_video": 0.5
       }
@@ -1079,11 +1079,11 @@
       {
         "from": "2026-10-01",
         "to": "2026-10-12",
-        "regime": "SPRINT_CONVEX",
+        "regime": "SPRINT_A",
         "planned_h_per_day": {
-          "T_CONVEX": 5.5,
-          "STR_COURSES": 1.0,
-          "SK_EN": 0.5,
+          "T_VIDEOS": 5.5,
+          "STR_CLASSES": 1.0,
+          "SK_LANG1": 0.5,
           "SK_LANG2": 0.35
         },
         "placement": [
@@ -1097,14 +1097,14 @@
         "to": "2026-11-10",
         "regime": "EARLY",
         "planned_h_per_week": {
-          "STR_COURSES": 8,
-          "ADV_TRACK": 12,
-          "SK_TORCH": 10,
-          "SK_EN": 9,
-          "STR_PLAN": 4,
-          "T_SURVEY": 3,
+          "STR_CLASSES": 8,
+          "MENTOR_TRACK": 12,
+          "SK_TOOLS": 10,
+          "SK_LANG1": 9,
+          "STR_SIDE": 4,
+          "T_READING": 3,
           "SK_LANG2": 2.5,
-          "T_LABLIST": 1
+          "T_SHORTLIST": 1
         },
         "note": "sample text"
       }

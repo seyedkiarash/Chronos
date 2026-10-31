@@ -30,7 +30,7 @@ public class DiscussTest {
     @Test
     public void theDiscussionCarriesTheQuestionTheProposalAndTheThread() {
         Graph g = ForecastTest.answered();
-        LlmRequest original = Replan.replan(g, TODAY, Triggers.PROB_DROP, List.of("T_SURVEY"), "test", Map.of(), null);
+        LlmRequest original = Replan.replan(g, TODAY, Triggers.PROB_DROP, List.of("T_READING"), "test", Map.of(), null);
         LlmRequest d = Discuss.request(original, "Title: More survey hours",
             List.of(new Discuss.Turn("you", "why 6?"), new Discuss.Turn("model", "because…")), "I have classes on Sunday");
         assertEquals(original.task(), d.task());
@@ -44,9 +44,9 @@ public class DiscussTest {
     @Test
     public void aRevisionIsReadAndPassesTheOriginalChecks() {
         Graph g = ForecastTest.answered();
-        LlmRequest original = Replan.replan(g, TODAY, Triggers.PROB_DROP, List.of("T_SURVEY"), "test", Map.of(), null);
+        LlmRequest original = Replan.replan(g, TODAY, Triggers.PROB_DROP, List.of("T_READING"), "test", Map.of(), null);
         String answer = "Fair point.\n{\"reply\":\"Four hours then, away from your class days.\",\"revise\":true,"
-            + "\"revised\":{\"options\":[{\"title\":\"Fewer hours\",\"actions\":[{\"type\":\"extra_hours\",\"node\":\"T_SURVEY\","
+            + "\"revised\":{\"options\":[{\"title\":\"Fewer hours\",\"actions\":[{\"type\":\"extra_hours\",\"node\":\"T_READING\","
             + "\"hours_per_week\":4,\"from\":\"2026-10-14\",\"until\":\"2026-11-10\"}]}]}," + SELF + "}";
         Discuss.Answer a = Discuss.read(answer);
         assertNotNull(a);

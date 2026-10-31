@@ -126,7 +126,7 @@ public class TwoFatiguesTest {
     @Test
     public void theSuggestedSplitReadsWhatTheActivityIs() {
         double[] gym = FatigueSplit.suggest("Workout", false, ActivityKind.MAINTENANCE, 0.6, 0.0);
-        double[] study = FatigueSplit.suggest("convex videos", false, ActivityKind.GOAL, 0.6, 0.0);
+        double[] study = FatigueSplit.suggest("course videos", false, ActivityKind.GOAL, 0.6, 0.0);
         double[] walk = FatigueSplit.suggest("پیاده‌روی", false, ActivityKind.MAINTENANCE, 0.0, 0.5);
         assertTrue(gym[2] > gym[0]);
         assertTrue(study[0] > study[2]);

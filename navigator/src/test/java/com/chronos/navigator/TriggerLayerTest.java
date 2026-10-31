@@ -72,24 +72,24 @@ public class TriggerLayerTest {
     public void probDropHasHysteresisAndACooldown() {
         Graph g = ForecastTest.answered();
         Map<String, Triggers.State> state = new HashMap<>();
-        Map<String, Double> p = new HashMap<>(Map.of("T_SURVEY", 0.55));
+        Map<String, Double> p = new HashMap<>(Map.of("T_READING", 0.55));
 
         List<Triggers.Fired> f = Triggers.evaluate(g, night(TODAY, p, Map.of(), null), state);
         assertEquals(1, f.stream().filter(x -> x.kind().equals(Triggers.PROB_DROP)).count());
-        assertEquals(List.of("T_SURVEY"), f.get(0).nodes());
+        assertEquals(List.of("T_READING"), f.get(0).nodes());
 
         // Still low the next day: disarmed, so silent.
         assertTrue(Triggers.evaluate(g, night(TODAY.plusDays(1), p, Map.of(), null), state).stream()
             .noneMatch(x -> x.kind().equals(Triggers.PROB_DROP)));
         // Back to 0.65 is not enough to re-arm; above 0.70 is.
-        p.put("T_SURVEY", 0.65);
+        p.put("T_READING", 0.65);
         Triggers.evaluate(g, night(TODAY.plusDays(2), p, Map.of(), null), state);
-        p.put("T_SURVEY", 0.50);
+        p.put("T_READING", 0.50);
         assertTrue(Triggers.evaluate(g, night(TODAY.plusDays(3), p, Map.of(), null), state).stream()
             .noneMatch(x -> x.kind().equals(Triggers.PROB_DROP)));
-        p.put("T_SURVEY", 0.75);
+        p.put("T_READING", 0.75);
         Triggers.evaluate(g, night(TODAY.plusDays(4), p, Map.of(), null), state);
-        p.put("T_SURVEY", 0.50);
+        p.put("T_READING", 0.50);
         assertTrue(Triggers.evaluate(g, night(TODAY.plusDays(5), p, Map.of(), null), state).stream()
             .anyMatch(x -> x.kind().equals(Triggers.PROB_DROP)));
     }
@@ -109,24 +109,24 @@ public class TriggerLayerTest {
     public void probJumpExpandDueManualChangeAndMonthlyReview() {
         Graph g = ForecastTest.answered();
         Map<String, Triggers.State> state = new HashMap<>();
-        Map<String, Double> p = Map.of("T_LABLIST", 0.9);
-        Map<String, Double> low = Map.of("T_LABLIST", 0.6);
+        Map<String, Double> p = Map.of("T_SHORTLIST", 0.9);
+        Map<String, Double> low = Map.of("T_SHORTLIST", 0.6);
         List<Triggers.Fired> f = Triggers.evaluate(g, night(TODAY, p, low, "a"), state);
         assertTrue(f.stream().anyMatch(x -> x.kind().equals(Triggers.PROB_JUMP)));
         assertTrue("manual_change only remembers on first sight", f.stream().noneMatch(x -> x.kind().equals(Triggers.MANUAL_CHANGE)));
-        assertTrue("T_REPRO expands on 2026-11-01, not before", f.stream().noneMatch(x -> x.kind().equals(Triggers.EXPAND_DUE)));
+        assertTrue("T_PROTOTYPE expands on 2026-11-01, not before", f.stream().noneMatch(x -> x.kind().equals(Triggers.EXPAND_DUE)));
 
         LocalDate nov4 = LocalDate.parse("2026-11-04");     // the first Wednesday of November
         f = Triggers.evaluate(g, night(nov4, p, low, "b"), state);
         assertTrue(f.stream().anyMatch(x -> x.kind().equals(Triggers.MANUAL_CHANGE)));
-        assertTrue(f.stream().anyMatch(x -> x.kind().equals(Triggers.EXPAND_DUE) && x.nodes().equals(List.of("T_REPRO"))));
+        assertTrue(f.stream().anyMatch(x -> x.kind().equals(Triggers.EXPAND_DUE) && x.nodes().equals(List.of("T_PROTOTYPE"))));
         assertTrue(f.stream().anyMatch(x -> x.kind().equals(Triggers.MONTHLY_REVIEW)));
         // The order they are sent in: expansion before the change review before the monthly one.
         List<String> kinds = f.stream().map(Triggers.Fired::kind).toList();
         assertTrue(kinds.indexOf(Triggers.EXPAND_DUE) < kinds.indexOf(Triggers.MONTHLY_REVIEW));
 
         f = Triggers.evaluate(g, new Triggers.Night(nov4.plusDays(1), nov4.plusDays(1).toEpochDay() * 86_400_000L,
-            p, low, "b", null, Set.of("T_REPRO")), state);
+            p, low, "b", null, Set.of("T_PROTOTYPE")), state);
         assertTrue("once a month, and not while an expansion waits", f.stream()
             .noneMatch(x -> x.kind().equals(Triggers.MONTHLY_REVIEW) || x.kind().equals(Triggers.EXPAND_DUE)));
     }
@@ -141,18 +141,18 @@ public class TriggerLayerTest {
     public void replanOptionsBecomeParametersOrTalks() {
         Graph g = ForecastTest.answered();
         String answer = "{\"options\":["
-            + "{\"title\":\"More survey hours\",\"actions\":[{\"type\":\"extra_hours\",\"node\":\"T_SURVEY\",\"hours_per_week\":6,"
-            + "\"from\":\"2026-10-14\",\"until\":\"2026-11-10\"},{\"type\":\"pause\",\"node\":\"T_LABLIST\",\"from\":\"2026-10-14\",\"until\":\"2026-11-10\"}],\"rationale\":\"r\"},"
-            + "{\"title\":\"Ask for time\",\"actions\":[{\"type\":\"move_deadline\",\"node\":\"T_CONVEX\",\"new_deadline\":\"2026-11-01\"}]},"
+            + "{\"title\":\"More survey hours\",\"actions\":[{\"type\":\"extra_hours\",\"node\":\"T_READING\",\"hours_per_week\":6,"
+            + "\"from\":\"2026-10-14\",\"until\":\"2026-11-10\"},{\"type\":\"pause\",\"node\":\"T_SHORTLIST\",\"from\":\"2026-10-14\",\"until\":\"2026-11-10\"}],\"rationale\":\"r\"},"
+            + "{\"title\":\"Ask for time\",\"actions\":[{\"type\":\"move_deadline\",\"node\":\"T_VIDEOS\",\"new_deadline\":\"2026-11-01\"}]},"
             + "{\"title\":\"Pause the gate\",\"actions\":[{\"type\":\"pause\",\"node\":\"G_INTERN\",\"from\":\"2026-10-14\",\"until\":\"2026-11-10\"}]},"
             + "{\"title\":\"Nope\",\"actions\":[{\"type\":\"extra_hours\",\"node\":\"NOPE\",\"hours_per_week\":1,\"from\":\"2026-10-14\",\"until\":\"2026-11-10\"}]}],"
             + SELF + ",\"summary\":\"s\"}";
-        List<ProposalValidator.Result> r = Replan.validate(g, TODAY, replanFor(g, "T_SURVEY"), answer);
+        List<ProposalValidator.Result> r = Replan.validate(g, TODAY, replanFor(g, "T_READING"), answer);
         assertEquals(4, r.size());
         assertTrue(r.get(0).reason(), r.get(0).ok());
-        assertEquals(Overrides.nodeKey("T_SURVEY", "min_weekly"), r.get(0).ops().get(0).key());
+        assertEquals(Overrides.nodeKey("T_READING", "min_weekly"), r.get(0).ops().get(0).key());
         assertEquals(6.0, r.get(0).ops().get(0).values().get("value"), 1e-9);
-        assertEquals(Overrides.nodeKey("T_LABLIST", "pause"), r.get(0).ops().get(1).key());
+        assertEquals(Overrides.nodeKey("T_SHORTLIST", "pause"), r.get(0).ops().get(1).key());
         assertTrue("an advisor's deadline is only discussed", r.get(1).ok() && r.get(1).ops().get(0).discussOnly());
         assertFalse("a gate is never paused", r.get(2).ok());
         assertFalse(r.get(3).ok());
@@ -163,10 +163,10 @@ public class TriggerLayerTest {
     public void replanRefusesPrivateNodesAndASelfDeclaredPerson() {
         Graph g = ForecastTest.answered();
         String priv = "{\"options\":[{\"title\":\"x\",\"actions\":[{\"type\":\"discuss\",\"node\":\"G_NETWORK\",\"topic\":\"t\"}]}]," + SELF + "}";
-        assertFalse(Replan.validate(g, TODAY, replanFor(g, "T_SURVEY"), priv).get(0).ok());
-        String declared = "{\"options\":[{\"title\":\"x\",\"actions\":[{\"type\":\"discuss\",\"node\":\"T_LABLIST\",\"topic\":\"t\"}]}],"
+        assertFalse(Replan.validate(g, TODAY, replanFor(g, "T_READING"), priv).get(0).ok());
+        String declared = "{\"options\":[{\"title\":\"x\",\"actions\":[{\"type\":\"discuss\",\"node\":\"T_SHORTLIST\",\"topic\":\"t\"}]}],"
             + "\"consent_self_check\":{\"involves_other_person\":true}}";
-        List<ProposalValidator.Result> r = Replan.validate(g, TODAY, replanFor(g, "T_SURVEY"), declared);
+        List<ProposalValidator.Result> r = Replan.validate(g, TODAY, replanFor(g, "T_READING"), declared);
         assertEquals(1, r.size());
         assertFalse(r.get(0).ok());
     }
@@ -176,15 +176,15 @@ public class TriggerLayerTest {
         Inputs in = ForecastTest.inputs();
         Graph base = with(List.of());
         Forecaster.Result before = Effects.baseline(base, in, TODAY, 1500, 11);
-        Param more = new Param(Overrides.nodeKey("T_SURVEY", "min_weekly"), Dist.POINT, null, "",
+        Param more = new Param(Overrides.nodeKey("T_READING", "min_weekly"), Dist.POINT, null, "",
             "value", 10, "from", LocalDate.parse("2026-10-14").toEpochDay(), "until", LocalDate.parse("2026-11-10").toEpochDay());
-        List<Effects.Change> up = Effects.compare(before, with(List.of(more)), in, TODAY, List.of("T_SURVEY"), 0.03, 4);
+        List<Effects.Change> up = Effects.compare(before, with(List.of(more)), in, TODAY, List.of("T_READING"), 0.03, 4);
         System.out.println("  10 h/week on the survey: " + up);
         assertTrue(up.get(0).delta() > 0.05);
 
-        Param pause = new Param(Overrides.nodeKey("T_SURVEY", "pause"), Dist.POINT, null, "",
+        Param pause = new Param(Overrides.nodeKey("T_READING", "pause"), Dist.POINT, null, "",
             "from", LocalDate.parse("2026-10-14").toEpochDay(), "until", LocalDate.parse("2026-11-05").toEpochDay());
-        List<Effects.Change> down = Effects.compare(before, with(List.of(pause)), in, TODAY, List.of("T_SURVEY"), 0.03, 4);
+        List<Effects.Change> down = Effects.compare(before, with(List.of(pause)), in, TODAY, List.of("T_READING"), 0.03, 4);
         System.out.println("  paused until 5 Nov: " + down);
         assertTrue(down.get(0).after() < 0.2);
     }
@@ -206,21 +206,21 @@ public class TriggerLayerTest {
     public void anExpansionIsCheckedLikeAFile() {
         Graph g = ForecastTest.answered();
         LocalDate nov = LocalDate.parse("2026-11-01");
-        LlmRequest req = Expand.request(g, nov, "T_REPRO", List.of("learning pytorch"));
-        assertTrue(req.user().contains("T_REPRO"));
+        LlmRequest req = Expand.request(g, nov, "T_PROTOTYPE", List.of("learning tools"));
+        assertTrue(req.user().contains("T_PROTOTYPE"));
         assertFalse("private nodes stay out of the snapshot", req.user().contains("G_NETWORK"));
 
         ProposalValidator.Result ok = Expand.validate(g, nov, req, kids(""));
         assertTrue(ok.reason(), ok.ok());
         assertEquals(4, ok.ops().size());
         JsonObject first = ok.ops().get(0).node();
-        assertEquals("T_REPRO_DATA", first.get("id").getAsString());
+        assertEquals("T_PROTOTYPE_DATA", first.get("id").getAsString());
         assertTrue("the first task waits for what the node waited for",
-            first.getAsJsonArray("depends_on").toString().contains("SK_TORCH"));
+            first.getAsJsonArray("depends_on").toString().contains("SK_TOOLS"));
 
         assertFalse("a loop", Expand.validate(g, nov, req, kids("").replace("\"depends_on\":[]", "\"depends_on\":[\"EVAL\"]")).ok());
         assertFalse("after the parent's deadline", Expand.validate(g, nov, req, kids("").replace("2027-01-10", "2027-02-10")).ok());
-        assertFalse("not a sibling", Expand.validate(g, nov, req, kids(",\"SK_TORCH\"")).ok());
+        assertFalse("not a sibling", Expand.validate(g, nov, req, kids(",\"SK_TOOLS\"")).ok());
         assertFalse("efforts far below the node's",
             Expand.validate(g, nov, req, kids("").replace("\"p50_hours\":25", "\"p50_hours\":1").replace("\"p50_hours\":12", "\"p50_hours\":2")).ok());
         assertFalse("medium needs its own expand_at",
@@ -231,42 +231,42 @@ public class TriggerLayerTest {
     public void anApprovedExpansionHandsTheWorkToTheChildren() {
         Graph g = ForecastTest.answered();
         LocalDate nov = LocalDate.parse("2026-11-01");
-        ProposalValidator.Result ok = Expand.validate(g, nov, Expand.request(g, nov, "T_REPRO", List.of()), kids(""));
+        ProposalValidator.Result ok = Expand.validate(g, nov, Expand.request(g, nov, "T_PROTOTYPE", List.of()), kids(""));
         List<JsonObject> rows = Structure.apply(g.nodes.values().stream().map(n -> n.raw).toList(), ok.ops());
         Graph after = rebuild(g, rows, List.of());
 
-        Node parent = after.node("T_REPRO");
+        Node parent = after.node("T_PROTOTYPE");
         assertTrue(parent.expanded);
         assertNull(parent.effortP50);
         assertTrue(parent.raw.has("effort_before_expand"));
-        assertEquals("T_REPRO", after.node("T_REPRO_DATA").raw.get("expanded_from").getAsString());
+        assertEquals("T_PROTOTYPE", after.node("T_PROTOTYPE_DATA").raw.get("expanded_from").getAsString());
         List<Issue> issues = Requirements.check(after, TODAY, Set.of(), Map.of());
         assertTrue("an expanded node asks for no effort of its own",
-            issues.stream().noneMatch(i -> i.subject().equals("T_REPRO") && i.fix() == Issue.Fix.NODE_EFFORT));
+            issues.stream().noneMatch(i -> i.subject().equals("T_PROTOTYPE") && i.fix() == Issue.Fix.NODE_EFFORT));
 
         Inputs in = ForecastTest.inputs();
         Forecaster.Result r = Forecaster.run(after, in, TODAY, 800, 5);
-        LocalDate eval = r.nodes().get("T_REPRO_EVAL").p50(), whole = r.nodes().get("T_REPRO").p50();
-        System.out.println("  after expansion: EVAL p50 " + eval + ", T_REPRO p50 " + whole);
+        LocalDate eval = r.nodes().get("T_PROTOTYPE_EVAL").p50(), whole = r.nodes().get("T_PROTOTYPE").p50();
+        System.out.println("  after expansion: EVAL p50 " + eval + ", T_PROTOTYPE p50 " + whole);
         if (eval != null && whole != null) assertFalse("the node finishes with its last task", whole.isBefore(eval));
     }
 
     @Test
     public void aMovedDeadlineGivesWayToANewerFile() {
         Graph g = ForecastTest.answered();
-        Node n = g.node("T_LABLIST");
+        Node n = g.node("T_SHORTLIST");
         Map<String, Double> v = new java.util.LinkedHashMap<>();
         v.put("value", (double) LocalDate.parse("2026-12-01").toEpochDay());
         v.putAll(Overrides.was(n, "deadline"));
-        Param moved = new Param(Overrides.nodeKey("T_LABLIST", "deadline"), Dist.POINT, null, "");
+        Param moved = new Param(Overrides.nodeKey("T_SHORTLIST", "deadline"), Dist.POINT, null, "");
         moved.values.putAll(v);
         Graph after = with(List.of(moved));
-        assertEquals(LocalDate.parse("2026-12-01"), after.node("T_LABLIST").deadline);
+        assertEquals(LocalDate.parse("2026-12-01"), after.node("T_SHORTLIST").deadline);
 
         // The same file again: the decision stays. A file that moved that deadline itself: the file wins.
         assertTrue(Overrides.superseded(ForecastTest.answered(), List.of(moved)).isEmpty());
         Graph fresh = ForecastTest.answered();
-        fresh.node("T_LABLIST").deadline = LocalDate.parse("2026-11-20");
+        fresh.node("T_SHORTLIST").deadline = LocalDate.parse("2026-11-20");
         assertEquals(List.of(moved.key), Overrides.superseded(fresh, List.of(moved)));
     }
 

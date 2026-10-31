@@ -20,13 +20,13 @@ public class HistoryTest {
 
     static Inputs log() {
         Inputs in = new Inputs();
-        in.nodeActivities.put("T_CONVEX", List.of("watching convex videos"));
-        in.unitGoals.put("watching convex videos", new Inputs.UnitGoal(1.5, 10, 30.0));
+        in.nodeActivities.put("T_VIDEOS", List.of("watching course videos"));
+        in.unitGoals.put("watching course videos", new Inputs.UnitGoal(1.5, 10, 30.0));
         double[] minutesPerUnit = {200, 180, 160, 140, 120};
         for (int i = 0; i < minutesPerUnit.length; i++) {
             LocalDate d = FIRST.plusDays(i);
-            in.sessions.add(new Inputs.Session(d, "watching convex videos", 120, (int) (2 * minutesPerUnit[i] / 2), true, false, 1.0, true));
-            in.sessions.add(new Inputs.Session(d, "watching convex videos", 60, null, true, true, null, true));
+            in.sessions.add(new Inputs.Session(d, "watching course videos", 120, (int) (2 * minutesPerUnit[i] / 2), true, false, 1.0, true));
+            in.sessions.add(new Inputs.Session(d, "watching course videos", 60, null, true, true, null, true));
         }
         return in;
     }
@@ -44,7 +44,7 @@ public class HistoryTest {
         for (History.Point p : speed.points()) assertTrue(p.low() <= p.value() && p.value() <= p.high());
         assertTrue(speed.steps().get(0).why().contains("units in"));
 
-        History.Series adh = all.stream().filter(s -> s.key().endsWith("adherence.watching convex videos")).findFirst().orElseThrow();
+        History.Series adh = all.stream().filter(s -> s.key().endsWith("adherence.watching course videos")).findFirst().orElseThrow();
         assertEquals("%", adh.unit());
         assertTrue(adh.steps().stream().anyMatch(s -> s.why().contains("of 180 planned min")));
         assertFalse(all.isEmpty());

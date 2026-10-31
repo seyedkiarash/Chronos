@@ -185,7 +185,7 @@ object Reminders {
             .setContentIntent(openLog(context)).setAutoCancel(true)
             .addAction(0, if (fa) "باز کردن لاگ" else "Open the log", openLog(context))
         val input = RemoteInput.Builder(REPLY_KEY)
-            .setLabel(if (fa) "مثلاً: ۱۰ تا ۱۲ محدب خواندم، خسته‌ام" else "e.g. read convex 10 to 12, tired").build()
+            .setLabel(if (fa) "مثلاً: ۱۰ تا ۱۲ فصل ۳ را خواندم، خسته‌ام" else "e.g. read chapter 3 from 10 to 12, tired").build()
         val reply = PendingIntent.getBroadcast(context, 2, Intent(context, QuickReplyReceiver::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
         b.addAction(NotificationCompat.Action.Builder(0, if (fa) "پاسخ کوتاه" else "Quick answer", reply)

@@ -24,15 +24,15 @@ public class RealRunTest {
 
     static JsonObject chronos() {
         return JsonParser.parseString("""
-            {"goals":[{"name":"study convex optimisation ","mode":"CLOSED","deadline":"2026-10-13","total_units":30,"done_units":30},
+            {"goals":[{"name":"study course optimisation ","mode":"CLOSED","deadline":"2026-10-13","total_units":30,"done_units":30},
                       {"name":"ta's job","mode":"CLOSED","deadline":"2026-10-20","total_units":10,"done_units":0},
-                      {"name":"learning pytorch","mode":"OPEN","weekly_floor_h":7}],
-             "activities":[{"name":"watching convex videos","kind":"goal","goal":"study convex optimisation "},
-                           {"name":"learning pytorch","kind":"goal","goal":"learning pytorch"},
-                           {"name":"reading gsp","kind":"goal","goal":"reading courses"},
-                           {"name":"reading cs","kind":"goal","goal":"reading courses"},
-                           {"name":"studying English ","kind":"goal","goal":"English fluency "},
-                           {"name":"Studying Korean ","kind":"goal","goal":"Korean fluency"},
+                      {"name":"learning tools","mode":"OPEN","weekly_floor_h":7}],
+             "activities":[{"name":"watching course videos","kind":"goal","goal":"study course optimisation "},
+                           {"name":"learning tools","kind":"goal","goal":"learning tools"},
+                           {"name":"reading course A","kind":"goal","goal":"reading courses"},
+                           {"name":"reading course B","kind":"goal","goal":"reading courses"},
+                           {"name":"studying language A ","kind":"goal","goal":"English fluency "},
+                           {"name":"studying language B ","kind":"goal","goal":"Language B fluency"},
                            {"name":"planning","kind":"goal","goal":"planning"},
                            {"name":"Study","kind":"goal","goal":"ta's job"}],
              "levers":{"slack_ratio":0.01,"f_safe":0.8,"f_safe_p":0.8,"bed":"23:00","wake":"06:00"},"rest_days":[]}""").getAsJsonObject();
@@ -42,13 +42,13 @@ public class RealRunTest {
     public void theExamTaskAndThePausesOfChronosActivitiesAreKept() {
         Graph g = ForecastTest.answered();
         String first = """
-            {"changes":[{"title":"Add convex-optimisation exam practice (advisor-mandated)","why":"…","actions":[
-              {"type":"add_task","key":"CONVEX_EXAM","title":"Convex optimisation exam practice","owner":"ADVISOR","p50_hours":20,
+            {"changes":[{"title":"Add course-optimisation exam practice (advisor-mandated)","why":"…","actions":[
+              {"type":"add_task","key":"COURSE_EXAM","title":"Course optimisation exam practice","owner":"ADVISOR","p50_hours":20,
                "p90_hours":25,"earliest":"2026-10-14","deadline":"2026-10-17","hard":true,"depends_on":[],"needed_by":[],
                "priority":"critical","activity":"exam practice","like":"Study"},
-              {"type":"pause","node":"learning pytorch","from":"2026-10-14","until":"2026-10-17"},
-              {"type":"pause","node":"reading gsp","from":"2026-10-14","until":"2026-10-17"},
-              {"type":"pause","node":"studying English ","from":"2026-10-14","until":"2026-10-17"},
+              {"type":"pause","node":"learning tools","from":"2026-10-14","until":"2026-10-17"},
+              {"type":"pause","node":"reading course A","from":"2026-10-14","until":"2026-10-17"},
+              {"type":"pause","node":"studying language A ","from":"2026-10-14","until":"2026-10-17"},
               {"type":"pause","node":"planning","from":"2026-10-14","until":"2026-10-17"}]}],
              "consent_self_check":{"targets_other_person":false}}""";
         ChangeSet.Parsed p = ChangeSet.read(g, DAY, chronos(), first);
@@ -63,11 +63,11 @@ public class RealRunTest {
     public void aDiscussNamingAChronosGoalAndANodePauseStand() {
         Graph g = ForecastTest.answered();
         String second = """
-            {"changes":[{"title":"Convex exam sprint + schedule adjustment","actions":[
-              {"type":"add_task","key":"EXAM_CONVEX_PRACTICE","title":"Convex optimization exam practice (advisor)","owner":"ADVISOR",
+            {"changes":[{"title":"Course exam sprint + schedule adjustment","actions":[
+              {"type":"add_task","key":"EXAM_COURSE_PRACTICE","title":"Course optimization exam practice (advisor)","owner":"ADVISOR",
                "p50_hours":20,"p90_hours":25,"earliest":"2026-10-14","deadline":"2026-10-17","hard":true,"priority":"critical",
-               "activity":"watching convex videos","like":"watching convex videos"},
-              {"type":"pause","node":"SK_TORCH","from":"2026-10-14","until":"2026-10-17"},
+               "activity":"watching course videos","like":"watching course videos"},
+              {"type":"pause","node":"SK_TOOLS","from":"2026-10-14","until":"2026-10-17"},
               {"type":"discuss","node":"ta's job","topic":"Extend deadline by one week to 2026-10-27"},
               {"type":"pause","node":"no such thing","from":"2026-10-14","until":"2026-10-17"}]}],
              "consent_self_check":{"targets_other_person":false}}""";
@@ -78,6 +78,6 @@ public class RealRunTest {
         assertTrue(p.ops().stream().anyMatch(op -> op.kind().equals(Op.DISCUSS)));
         // The new task's planner activity does not take the name of one that exists.
         Op goal = p.ops().stream().filter(op -> op.isChronos() && op.node().get("type").getAsString().equals("task_goal")).findFirst().orElseThrow();
-        assertEquals("watching convex videos 2", goal.node().get("activity").getAsString());
+        assertEquals("watching course videos 2", goal.node().get("activity").getAsString());
     }
 }

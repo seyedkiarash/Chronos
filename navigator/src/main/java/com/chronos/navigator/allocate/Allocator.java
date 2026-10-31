@@ -25,7 +25,7 @@ import java.util.Map;
  *
  *  1. the week's capacity: expected goal hours of its days × mean adherence;
  *  2. what cannot move comes first — the floors of streams and skills, and
- *     the hours an overlay (the convex sprint) planned for its nodes;
+ *     the hours an overlay (a sprint) planned for its nodes;
  *  3. the rest in chunks, to the best gain each time, within each node's
  *     daily cap and the work it has left, paused support work excluded;
  *  4. when the best gain falls under a small threshold the rest stays free:

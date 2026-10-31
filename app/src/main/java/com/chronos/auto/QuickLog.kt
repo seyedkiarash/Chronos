@@ -33,7 +33,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 
 /**
- * A one-line answer to a reminder ("read convex from 10 to 12, tired"), read by
+ * A one-line answer to a reminder ("read chapter 3 from 10 to 12, tired"), read by
  * the model into log entries. Nothing is saved until you confirm the entries in
  * the Log; when something essential is unclear the model asks one question, and
  * your answer goes back to it with the conversation so far.

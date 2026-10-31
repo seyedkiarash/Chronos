@@ -24,8 +24,8 @@ import java.util.Set;
 public class StalenessTest {
 
     static final LocalDate TODAY = ForecastTest.TODAY;
-    static final Set<String> ACTS = Set.of("watching convex videos", "reading gsp");
-    static final Set<String> GOALS = Set.of("convex optimisation");
+    static final Set<String> ACTS = Set.of("watching course videos", "reading course A");
+    static final Set<String> GOALS = Set.of("course optimisation");
 
     private static Op extraHours(String node, LocalDate from, LocalDate until) {
         return new Op("node." + node + ".min_weekly", Dist.POINT,
@@ -44,7 +44,7 @@ public class StalenessTest {
     public void aCurrentProposalStays() {
         Graph g = ForecastTest.answered();
         Staleness.Verdict v = Staleness.check(g, TODAY,
-            List.of(extraHours("T_SURVEY", TODAY, TODAY.plusDays(30))), "T_SURVEY", ACTS, GOALS);
+            List.of(extraHours("T_READING", TODAY, TODAY.plusDays(30))), "T_READING", ACTS, GOALS);
         assertNull(v.outdated());
         assertEquals(1, v.live());
         assertFalse(v.partly());
@@ -54,7 +54,7 @@ public class StalenessTest {
     public void aPeriodThatIsOverIsOutdated() {
         Graph g = ForecastTest.answered();
         Staleness.Verdict v = Staleness.check(g, TODAY,
-            List.of(extraHours("T_SURVEY", TODAY.minusDays(40), TODAY.minusDays(2))), "T_SURVEY", ACTS, GOALS);
+            List.of(extraHours("T_READING", TODAY.minusDays(40), TODAY.minusDays(2))), "T_READING", ACTS, GOALS);
         assertNotNull(v.outdated());
         assertTrue(v.outdated(), v.outdated().contains("over"));
     }
@@ -70,9 +70,9 @@ public class StalenessTest {
     @Test
     public void aFinishedSubjectIsOutdated() {
         Graph g = ForecastTest.answered();
-        g.node("T_SURVEY").status = "done";
+        g.node("T_READING").status = "done";
         Staleness.Verdict v = Staleness.check(g, TODAY,
-            List.of(extraHours("T_SURVEY", TODAY, TODAY.plusDays(30))), "T_SURVEY", ACTS, GOALS);
+            List.of(extraHours("T_READING", TODAY, TODAY.plusDays(30))), "T_READING", ACTS, GOALS);
         assertEquals("What it was about is finished", v.outdated());
     }
 
@@ -80,9 +80,9 @@ public class StalenessTest {
     public void onlyPartOfACrewPackageGoneIsWorthAskingAgain() {
         Graph g = ForecastTest.answered();
         Staleness.Verdict v = Staleness.check(g, TODAY, List.of(
-            chronos("pause_activity", "activity", "Reading GSP", "from", TODAY.toString(), "until", TODAY.plusDays(5).toString()),
+            chronos("pause_activity", "activity", "Reading course A", "from", TODAY.toString(), "until", TODAY.plusDays(5).toString()),
             chronos("rest_day", "date", TODAY.minusDays(1).toString()),
-            chronos("edit_activity", "activity", "studying korean")), null, ACTS, GOALS);
+            chronos("edit_activity", "activity", "studying language b")), null, ACTS, GOALS);
         assertNull(v.outdated());
         assertEquals(1, v.live());
         assertTrue(v.partly());

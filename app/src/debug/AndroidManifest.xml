@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Debug builds only (31 Oct 2026): lets adb allow screenshots for two hours. DUMP is held by the
+             adb shell and cannot be granted to an ordinary app, so nothing on the phone can call it. -->
+        <receiver
+            android:name="com.chronos.ui.common.CaptureReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.chronos.ALLOW_CAPTURE" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>
