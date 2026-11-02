@@ -160,7 +160,7 @@ internal fun ForecastPanel(nav: NavigatorViewModel, g: Graph) {
         if (atRisk.isNotEmpty()) {
             OutlinedButton(onClick = { nav.askReplan(atRisk.map { it.id }) }, enabled = !nav.busy,
                 modifier = Modifier.padding(top = 6.dp)) { Text("Ask the LLM for ways to recover") }
-            Hint(tr("For") + " " + atRisk.joinToString(", ") { it.id } + ". " +
+            Hint(tr("For") + " " + atRisk.joinToString(", ") { it.shortName() } + ". " +
                 tr("The same question goes out by itself at night when a deadline falls below 60%."))
         }
         if (dated.size > 8) TextButton(onClick = { all = !all }) {

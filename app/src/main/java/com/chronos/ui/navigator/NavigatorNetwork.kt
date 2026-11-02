@@ -97,7 +97,7 @@ private data class Layout(val spots: List<Spot>, val columns: List<Column>, val 
                           val width: Float, val height: Float, val colW: Float, val left: Float)
 
 private fun labelOf(n: Node, p: Double?): String =
-    n.id + (p?.takeIf { n.deadline != null }?.let { " " + Math.round(it * 100) + "%" } ?: "")
+    n.shortName() + (if (done(n)) " ✓" else p?.takeIf { n.deadline != null }?.let { " " + Math.round(it * 100) + "%" } ?: "")
 
 @Composable
 internal fun NetworkPanel(nav: NavigatorViewModel, g: Graph) {
@@ -172,7 +172,7 @@ internal fun NetworkPanel(nav: NavigatorViewModel, g: Graph) {
                     Box(Modifier.padding(end = 6.dp, bottom = 4.dp).clip(RoundedCornerShape(10.dp))
                         .background(typeColor(n.type).copy(alpha = 0.12f)).clickable { selected = n.id }
                         .padding(horizontal = 8.dp, vertical = 3.dp)) {
-                        Text(n.id + (now?.weekHours?.let { " · " + trimNumber(it) + " h" } ?: "") +
+                        Text(n.shortName() + (now?.weekHours?.let { " · " + trimNumber(it) + " h" } ?: "") +
                              (now?.adherence?.let { " · " + Math.round(it * 100) + "%" } ?: ""),
                             style = MaterialTheme.typography.labelSmall, color = typeColor(n.type))
                     }
@@ -252,7 +252,8 @@ internal fun NetworkPanel(nav: NavigatorViewModel, g: Graph) {
                             width = (if (onChain) 3f else 1f) * 1.dp.toPx() * min(1.5f, ts),
                             pathEffect = if (e.kind() == EdgeKind.AND) null else PathEffect.dashPathEffect(floatArrayOf(8f, 6f))))
                     }
-                    // nodes
+                    // nodes; labels kept apart (2 Nov 2026): one that would cover another goes above its dot, or a line lower
+                    val taken = mutableListOf<androidx.compose.ui.geometry.Rect>()
                     for (s in layout.spots) {
                         val c = at(s.x, s.y)
                         if (c.x < -60 || c.x > size.width + 60 || c.y < -30 || c.y > size.height + 30) continue
@@ -263,10 +264,20 @@ internal fun NetworkPanel(nav: NavigatorViewModel, g: Graph) {
                         drawCircle(typeColor(s.node.type), r, c, style = Stroke(if (selected == s.node.id) 3.dp.toPx() else 1.5.dp.toPx()))
                         val layoutText = measurer.measure(labelOf(s.node, s.p),
                             if (selected == s.node.id) small.copy(fontWeight = FontWeight.Bold) else small,
-                            softWrap = false, maxLines = 1)
-                        // Under the dot, where no line runs (lines leave the dot sideways); never wrapped.
-                        drawText(layoutText, topLeft = Offset(c.x - r, c.y + r + 1.dp.toPx()),
-                            alpha = if (dim) 0.5f else 1f)
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, softWrap = false, maxLines = 1,
+                            constraints = androidx.compose.ui.unit.Constraints(maxWidth = 150.dp.roundToPx()))
+                        // Under the dot, where no line runs (lines leave the dot sideways); never wrapped. If that place
+                        // is taken by another label: above the dot, then one and two lines lower.
+                        val h = layoutText.size.height.toFloat()
+                        val w = layoutText.size.width.toFloat()
+                        val below = c.y + r + 1.dp.toPx()
+                        val spots = listOf(below, c.y - r - h - 1.dp.toPx(), below + h, below + 2 * h)
+                        val top = spots.firstOrNull { y ->
+                            val box = androidx.compose.ui.geometry.Rect(c.x - r, y, c.x - r + w, y + h)
+                            taken.none { it.overlaps(box) }
+                        } ?: below
+                        taken += androidx.compose.ui.geometry.Rect(c.x - r, top, c.x - r + w, top + h)
+                        drawText(layoutText, topLeft = Offset(c.x - r, top), alpha = if (dim) 0.5f else 1f)
                     }
                 }
                 Row(Modifier.align(Alignment.BottomEnd).padding(4.dp)) {

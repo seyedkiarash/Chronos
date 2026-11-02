@@ -81,6 +81,22 @@ public class Node {
     public JsonObject raw;
 
     /**
+     * A short, plain name for the map and the chips (your request of 2 Nov 2026): the file's "short" if it
+     * gives one, else the title cut at a word near 28 characters, else the id. The id stays the node's key.
+     */
+    public String shortName() {
+        if (raw != null && raw.has("short") && raw.get("short").isJsonPrimitive()) {
+            String s = raw.get("short").getAsString().trim();
+            if (!s.isEmpty()) return s;
+        }
+        if (title == null || title.isBlank()) return id;
+        String t = title.trim();
+        if (t.length() <= 28) return t;
+        int cut = t.lastIndexOf(' ', 28);
+        return (cut > 12 ? t.substring(0, cut) : t.substring(0, 28)) + "…";
+    }
+
+    /**
      * A consent channel that starts with "none" marks something that cannot be
      * planned at all: nothing may be put under it and no hours go to it.
      */

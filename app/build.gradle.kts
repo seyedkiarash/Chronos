@@ -98,7 +98,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.work.runtime)
-    implementation(libs.androidx.biometric)      // the optional app lock: the phone's own fingerprint or screen lock  // weekly calibration, calendar sync
+    implementation(libs.androidx.biometric)      // the optional app lock: the phone's own fingerprint or screen lock
+    // A current FragmentActivity: the one biometric brings is old and refuses the request codes of the file pickers.
+    implementation(libs.androidx.fragment)  // weekly calibration, calendar sync
 
     testImplementation(libs.junit)              // the engine harness runs here, no emulator
     androidTestImplementation(platform(libs.androidx.compose.bom))

@@ -96,7 +96,7 @@ private fun InboxRow(nav: NavigatorViewModel, p: NavProposals.View) {
                 tr(triggerLabel(p.trigger(), p.task())),
                 tr(statusLabel(p.status())),
                 if (p.version() > 1) "v" + p.version() else null,
-                best?.let { e -> "P(" + (g?.node(e.nodeId())?.id ?: e.nodeId()) + ") " + signed(e.after() - e.before()) },
+                best?.let { e -> "P(" + (g?.node(e.nodeId())?.shortName() ?: e.nodeId()) + ") " + signed(e.after() - e.before()) },
                 if (p.thread().isNotEmpty()) "💬 " + p.thread().size else null
             ).joinToString("  ·  "))
         }
