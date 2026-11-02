@@ -141,7 +141,9 @@ object CrewRun {
 
     /** @param failed why your message could not be sent (it stays, to copy, edit or send again); null when it went */
     data class ChatTurn(val who: String, val text: String, val at: Long, val jobId: String? = null,
-                        val proposalId: String? = null, val failed: String? = null)
+                        val proposalId: String? = null, val failed: String? = null,
+                        /** A first reply from a fast model while the crew works (3 Nov 2026). */
+                        val quick: Boolean = false)
 
     private val gson: Gson = GsonBuilder().disableHtmlEscaping().create()
 
@@ -355,7 +357,7 @@ object CrewRun {
         try {
             val base = base(context)
             val digest = ChronosControl.digest(base.cfg, DatabaseWiring.repository(context).logs(), base.rest, base.g, base.today)
-            val brief = Crew.brief(base.g, base.today, base.bands, base.chronos, digest, language(context))
+            val brief = Crew.brief(base.g, base.today, base.bands, base.chronos, digest, language(context)).also { Companion.addTo(context, it) }
             val earlier = chat(context, chatOf(job)).filter { it.jobId != job.id }.map { Crew.Turn(it.who, it.text) }
             val options = if (kind == "WEEKLY") candidates(context, base) else null
             promptFile(context, job.id).writeText(if (kind == "GRAPH") Crew.relayGraph(brief, Crew.graph(base.g, base.bands), earlier, message!!)
@@ -580,6 +582,7 @@ object CrewRun {
         val req = if (role == Crew.Role.ARCHITECT || role == Crew.Role.TUNER || role == Crew.Role.COORDINATOR)
             NavAsk.withInbox(context, asked) else asked
         rehearsal(context, role, req)?.let { job.requests++; return it }
+        LlmHealth.attach(context)
         val s = CrewSettings(context)
         val llm = LlmSettings(context)
         val pick = s.pick(role) ?: throw IllegalStateException("No model is chosen for the ${role.name.lowercase()}.")
@@ -591,7 +594,7 @@ object CrewRun {
         // Then every other provider you set up with a key and a model (27 Oct 2026): a message is not lost
         // because the crew's own models are busy.
         llm.profiles.filter { it.id != home.id && it.preset != "openrouter" && it.model.isNotBlank() && KeyVault.has(context, it.id) }
-            .forEach { tries += it }
+            .sortedBy { LlmHealth.score(it) }.forEach { tries += it }
         val inbox = NavProposals(DatabaseWiring.navigator(context).dao())
         val why = mutableListOf<String>()
         var badKey = false
@@ -825,7 +828,7 @@ object CrewRun {
         job.stage = "measuring"; save(context, job)
         val base = base(context)
         val brief = Crew.brief(base.g, base.today, base.bands, base.chronos,
-            ChronosControl.digest(base.cfg, DatabaseWiring.repository(context).logs(), base.rest, base.g, base.today), language(context))
+            ChronosControl.digest(base.cfg, DatabaseWiring.repository(context).logs(), base.rest, base.g, base.today), language(context)).also { Companion.addTo(context, it) }
         val earlier = chat(context, chatOf(job)).filter { it.jobId != job.id }.map { Crew.Turn(it.who, it.text) }
         val co = step(job, Crew.Role.COORDINATOR)
         co.status = "RUNNING"; job.stage = "coordinator"; save(context, job)
@@ -859,7 +862,7 @@ object CrewRun {
         job.stage = "measuring"; save(context, job)
         val base = base(context)
         val brief = Crew.brief(base.g, base.today, base.bands, base.chronos,
-            ChronosControl.digest(base.cfg, DatabaseWiring.repository(context).logs(), base.rest, base.g, base.today), language(context))
+            ChronosControl.digest(base.cfg, DatabaseWiring.repository(context).logs(), base.rest, base.g, base.today), language(context)).also { Companion.addTo(context, it) }
         val earlier = chat(context, chatOf(job)).filter { it.jobId != job.id }.map { Crew.Turn(it.who, it.text) }
 
         // 1. the architect
@@ -891,7 +894,7 @@ object CrewRun {
         job.stage = "measuring"; save(context, job)
         val base = base(context)
         val digest = ChronosControl.digest(base.cfg, DatabaseWiring.repository(context).logs(), base.rest, base.g, base.today)
-        val brief = Crew.brief(base.g, base.today, base.bands, base.chronos, digest, language(context))
+        val brief = Crew.brief(base.g, base.today, base.bands, base.chronos, digest, language(context)).also { Companion.addTo(context, it) }
 
         // 1. the analyst reads the log while the app tries the obvious lever moves
         val an = step(job, Crew.Role.ANALYST)

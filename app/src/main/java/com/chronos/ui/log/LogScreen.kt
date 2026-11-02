@@ -545,16 +545,14 @@ private fun EnergyPanel(vm: ChronosViewModel, day: LocalDate, blocks: List<Block
     val mine = vm.logs.filter { it.kind == Enums.LogKind.CHECKIN && it.date == day && it.id.startsWith("energy|") }
     val byHour = mine.associateBy { it.id.substringAfterLast('|').toIntOrNull() ?: -1 }
 
-    // Day-wide causes live in each rated hour's tags. Before any hour is rated
-    // they are held here, and written with the first rating.
-    var dayCauses by remember(day) {
-        mutableStateOf(DAY_CAUSES.filter { t -> mine.any { it.tags?.contains(t) == true } })
-    }
-    val pendingCauses = remember(day) { mutableStateMapOf<Int, List<String>>() }
+    // Day-wide causes live in each rated hour's tags. Before any hour is rated they are
+    // held in the view model, which outlives the tab, and written with the first rating.
+    val dayCauses = vm.energyDayCauses[day]
+        ?: DAY_CAUSES.filter { t -> mine.any { it.tags?.contains(t) == true } }
     var openHour by remember(day) { mutableStateOf<Int?>(null) }
 
     fun hourCauses(h: Int): List<String> =
-        byHour[h]?.tags?.filter { it !in DAY_CAUSES } ?: pendingCauses[h] ?: emptyList()
+        byHour[h]?.tags?.filter { it !in DAY_CAUSES } ?: vm.energyHourCauses[energyId(day, h)] ?: emptyList()
 
     fun entry(w: WakingHour, rating: Int, causes: List<String>, allDay: List<String>) = LogEntry().apply {
         id = energyId(day, w.hour)
@@ -574,7 +572,7 @@ private fun EnergyPanel(vm: ChronosViewModel, day: LocalDate, blocks: List<Block
         Spacer(Modifier.height(8.dp))
 
         val setDay: (List<String>) -> Unit = { chosen ->
-            dayCauses = chosen
+            vm.energyDayCauses[day] = chosen
             vm.putLogs(hours.mapNotNull { w ->
                 byHour[w.hour]?.energy?.let { r -> entry(w, r, hourCauses(w.hour), chosen) }
             })
@@ -636,7 +634,7 @@ private fun EnergyPanel(vm: ChronosViewModel, day: LocalDate, blocks: List<Block
                 if (openHour == w.hour) {
                     val update: (List<String>) -> Unit = { chosen ->
                         if (rating != null) vm.putLogs(listOf(entry(w, rating, chosen, dayCauses)))
-                        else pendingCauses[w.hour] = chosen
+                        else vm.energyHourCauses[energyId(day, w.hour)] = chosen
                     }
                     Text("Around you — rating kept out of the fit",
                         style = MaterialTheme.typography.labelSmall, color = Palette.Brick)

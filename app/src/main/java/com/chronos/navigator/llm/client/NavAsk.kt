@@ -350,8 +350,10 @@ object NavAsk {
             Pair<NavEntities.LlmCallRow, LlmClient.Reply> {
         val inbox = NavProposals(DatabaseWiring.navigator(context).dao())
         val llm = LlmSettings(context)
-        val order = (listOf(first) + llm.profiles.filter { it.id != first.id })
+        // The others by how they answered lately (3 Nov 2026); the one in use first unless it fails on every key.
+        val order = (listOf(first) + llm.profiles.filter { it.id != first.id }.sortedBy { LlmHealth.score(it) })
             .filter { it.model.isNotBlank() && KeyVault.has(context, it.id) }
+            .sortedBy { if (LlmHealth.score(it) >= 10_000_000L) 1 else 0 }
         if (order.isEmpty()) throw IllegalStateException("Add the API key for ${first.label} in the LLM panel first.")
         val why = mutableListOf<String>()
         for (p in order) {

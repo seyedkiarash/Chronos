@@ -50,6 +50,7 @@ fun NavigatorScreen(nav: NavigatorViewModel) {
     PageTop(nav, page)
     val g = nav.graph
     when (page) {
+        NavPage.TODAY -> TodayPanel(nav)
         NavPage.CHAT -> CrewPanel(nav, compact = false)
         NavPage.CHATS -> ChatsPanel(nav)
         NavPage.INBOX -> { InboxPanel(nav); if (nav.proposals.isEmpty()) Hint("Nothing has been proposed yet.") }

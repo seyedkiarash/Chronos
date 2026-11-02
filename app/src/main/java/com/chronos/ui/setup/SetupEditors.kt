@@ -20,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.chronos.engine.Slots
@@ -97,6 +98,18 @@ private fun Activity.apply(t: Template, lang: Lang) {
 
 // ---------------------------------------------------------------- sheet
 
+/**
+ * Scrolling the form never moves the sheet (3 Nov 2026): the drag left over once the form
+ * reaches its top used to pull the sheet down mid-entry. Only the handle at the top moves it,
+ * and a full pull down there closes it.
+ */
+private val KeepSheetStill = object : androidx.compose.ui.input.nestedscroll.NestedScrollConnection {
+    override fun onPostScroll(consumed: androidx.compose.ui.geometry.Offset, available: androidx.compose.ui.geometry.Offset,
+                              source: androidx.compose.ui.input.nestedscroll.NestedScrollSource) = available
+    override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity, available: androidx.compose.ui.unit.Velocity) =
+        available
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun EditorSheet(vm: ChronosViewModel, e: Editing, issues: List<Readiness.Issue>, close: () -> Unit) {
@@ -107,7 +120,8 @@ internal fun EditorSheet(vm: ChronosViewModel, e: Editing, issues: List<Readines
         // The sheet is its own window; the language and the reading direction are handed on explicitly.
         CompositionLocalProvider(LocalLang provides lang,
             androidx.compose.ui.platform.LocalLayoutDirection provides direction) {
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp)
+        Column(Modifier.fillMaxWidth().nestedScroll(KeepSheetStill).verticalScroll(rememberScrollState())
+            .padding(horizontal = 18.dp)
             .padding(bottom = 28.dp)) {
             when (e) {
                 is Editing.OfGroup -> GroupEditor(vm, e, close)

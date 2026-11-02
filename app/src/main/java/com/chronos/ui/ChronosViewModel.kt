@@ -187,6 +187,37 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
      */
     val sleepDrafts = mutableStateMapOf<LocalDate, LogEntry>()
 
+    /**
+     * The energy list's reasons chosen before an hour is rated, by day and by hour (3 Nov 2026):
+     * held here, not in the screen, so leaving the Log tab halfway does not lose them.
+     */
+    val energyDayCauses = mutableStateMapOf<LocalDate, List<String>>()
+    val energyHourCauses = mutableStateMapOf<String, List<String>>()
+
+    /**
+     * Taps not yet in the database (3 Nov 2026). Saves ran side by side, and a slow one could
+     * read the log before a later tap was written and put that older list on screen last —
+     * the later ratings vanished until a restart. Now writes go one at a time, and every
+     * reload lays these over what the database returned.
+     */
+    private val unsavedLogs = java.util.concurrent.ConcurrentHashMap<String, LogEntry>()
+    private val unsavedDrops = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val logLock = Any()
+
+    private fun freshLogs(): List<LogEntry> =
+        repo.logs().filter { it.id !in unsavedDrops && !unsavedLogs.containsKey(it.id) } + unsavedLogs.values
+
+    /** Shown at once, written in turn; a newer tap on the same id stays pending until its own write. */
+    private fun writeLogs(entries: List<LogEntry>) {
+        entries.forEach { unsavedDrops.remove(it.id); unsavedLogs[it.id] = it }
+        val byId = entries.associateBy { it.id }
+        logs = logs.filter { it.id !in byId } + entries
+    }
+
+    private fun storeLogs(entries: List<LogEntry>) = synchronized(logLock) {
+        entries.forEach { repo.addLog(it); unsavedLogs.remove(it.id, it) }
+    }
+
     /** Minutes asleep in a logged night: time in bed less the time it took to fall asleep. */
     private fun sleptMinutes(night: LogEntry): Int? {
         val bed = night.at ?: return null
@@ -293,10 +324,10 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
             fatigueAfter = listOfNotNull(heavyMind, heavyBody).maxOrNull()
             tags = signs
         }
-        logs = logs.filter { it.id != entry.id } + entry
+        writeLogs(listOf(entry))
         work {
-            repo.addLog(entry)
-            logs = repo.logs()
+            storeLogs(listOf(entry))
+            logs = freshLogs()
             lateEntries = repo.pendingLateEntries()
             refreshWellbeing()
             val verdict = restVerdict
@@ -399,7 +430,7 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
             val repaired = repairConfig()
             issues = repo.readiness(config)
             feasibility = repo.feasibility(config)
-            logs = repo.logs()
+            logs = freshLogs()
             lateEntries = repo.pendingLateEntries()
             comparisons = repo.comparisons()
             logDay = ChronosRepository.logicalToday()
@@ -633,7 +664,7 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
         val blocks = runCatching { repo.dayPlan(config, bundle, day)?.blocks().orEmpty() }.getOrDefault(emptyList())
         val list = com.chronos.auto.QuickLog.toLogs(config, day, blocks, entries)
         list.forEach { repo.addLog(it) }
-        logs = repo.logs()
+        logs = freshLogs()
         lateEntries = repo.pendingLateEntries()
         com.chronos.auto.QuickLog.markDone(app, id)
         refreshQuick()
@@ -731,7 +762,7 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun addLog(entry: LogEntry) = work("Saved.") {
         repo.addLog(entry)
-        logs = repo.logs()
+        logs = freshLogs()
     }
 
     /**
@@ -741,11 +772,10 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
      */
     fun putLogs(entries: List<LogEntry>) {
         if (entries.isEmpty()) return
-        val byId = entries.associateBy { it.id }
-        logs = logs.filter { it.id !in byId } + entries
+        writeLogs(entries)
         work {
-            entries.forEach { repo.addLog(it) }
-            logs = repo.logs()
+            storeLogs(entries)
+            logs = freshLogs()
             lateEntries = repo.pendingLateEntries()
             // A night logged in the sleep box can change this morning's rest check.
             if (entries.any { it.kind == com.chronos.model.Enums.LogKind.SLEEP }) refreshWellbeing()
@@ -754,10 +784,13 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun dropLogs(ids: Collection<String>) {
         if (ids.isEmpty()) return
+        ids.forEach { unsavedLogs.remove(it); unsavedDrops.add(it) }
         logs = logs.filter { it.id !in ids }
         work {
             var progressMoved = false
-            ids.forEach { if (repo.removeLog(it)) progressMoved = true }
+            synchronized(logLock) {
+                ids.forEach { if (repo.removeLog(it)) progressMoved = true; unsavedDrops.remove(it) }
+            }
             afterRemoval(progressMoved)
         }
     }
@@ -766,7 +799,7 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
 
     /** A deleted session whose units were already counted took them back from its goal. */
     private fun afterRemoval(progressMoved: Boolean) {
-        logs = repo.logs()
+        logs = freshLogs()
         lateEntries = repo.pendingLateEntries()
         if (progressMoved) {
             config = repo.loadConfig()
@@ -787,7 +820,7 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
         config = repo.loadConfig()
         LogExport.record(app, "late entries applied", emptyList(), changes, config)
         issues = repo.readiness(config)
-        logs = repo.logs()
+        logs = freshLogs()
         lateEntries = repo.pendingLateEntries()
         val stale = repo.storedPlan(config)?.stale() == true
         bundle?.let { if (stale) bundle = it.markStale() }

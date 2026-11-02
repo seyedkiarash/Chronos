@@ -146,6 +146,35 @@ object LlmClient {
      * that says so in its stop reason.
      */
     fun send(p: Profile, apiKey: String, req: LlmRequest): Reply {
+        val t0 = System.currentTimeMillis()
+        return try {
+            sendWhole(p, apiKey, req).also { LlmHealth.record(p, apiKey, System.currentTimeMillis() - t0, null, "full") }
+        } catch (e: Exception) {
+            LlmHealth.record(p, apiKey, System.currentTimeMillis() - t0, e.message ?: e.javaClass.simpleName, "full")
+            throw e
+        }
+    }
+
+    /**
+     * A short answer with a short wait (3 Nov 2026): no continuation, and a provider that has not
+     * answered within [readMs] gives way to the next rather than holding the reply for three minutes.
+     */
+    fun sendShort(p: Profile, apiKey: String, req: LlmRequest, maxTokens: Int, readMs: Int, kind: String): Reply {
+        val t0 = System.currentTimeMillis()
+        return try {
+            sendOnce(p, apiKey, req, maxTokens, readMs).also { LlmHealth.record(p, apiKey, System.currentTimeMillis() - t0, null, kind) }
+        } catch (e: Exception) {
+            LlmHealth.record(p, apiKey, System.currentTimeMillis() - t0, e.message ?: e.javaClass.simpleName, kind)
+            throw e
+        }
+    }
+
+    /** One word asked on one key: does it answer, and how fast. An answer spent on thinking still counts as an answer. */
+    fun ping(p: Profile, apiKey: String): Reply = sendShort(p, apiKey,
+        LlmRequest("PING", JsonObject().apply { addProperty("kind", "PING") }, "Answer with the single word OK.", "OK?", false),
+        64, 30_000, "ping")
+
+    private fun sendWhole(p: Profile, apiKey: String, req: LlmRequest): Reply {
         var reply = sendOnce(p, apiKey, req, COMPAT_MAX_TOKENS)
         // A thinking model may spend the whole allowance thinking and say nothing: once more with twice the room.
         if (reply.text.isBlank() && cutOff(reply) && p.kind != ProviderKind.ANTHROPIC)
@@ -161,8 +190,10 @@ object LlmClient {
         return reply
     }
 
-    private fun sendOnce(p: Profile, apiKey: String, req: LlmRequest, maxTokens: Int): Reply =
-        if (p.kind == ProviderKind.ANTHROPIC) sendClaude(apiKey, p.model, req) else sendCompat(p, apiKey, req, maxTokens)
+    private fun sendOnce(p: Profile, apiKey: String, req: LlmRequest, maxTokens: Int, readMs: Int = 180_000): Reply =
+        if (p.kind == ProviderKind.ANTHROPIC)
+            sendClaude(apiKey, p.model, req, if (maxTokens < COMPAT_MAX_TOKENS) maxTokens.toLong() else MAX_TOKENS, readMs)
+        else sendCompat(p, apiKey, req, maxTokens, readMs)
 
     /** Stopped by the length limit rather than by finishing. */
     fun cutOff(r: Reply) = r.stopReason == "length" || r.stopReason == "max_tokens"
@@ -188,6 +219,7 @@ object LlmClient {
      * fails for every key alike (no network, the provider down) is thrown at once.
      */
     fun sendAnyKey(context: Context, p: Profile, req: LlmRequest): Reply {
+        LlmHealth.attach(context)
         val keys = KeyVault.keys(context, p.id)
         if (keys.isEmpty()) throw IllegalStateException("No API key for ${p.label}")
         val why = mutableListOf<String>()
@@ -207,20 +239,21 @@ object LlmClient {
 
     // ---------------------------------------------------------------- Claude
 
-    fun sendClaude(apiKey: String, model: String, req: LlmRequest): Reply = try {
-        sendClaude(apiKey, model, req, withFallback = true)
+    fun sendClaude(apiKey: String, model: String, req: LlmRequest, maxTokens: Long = MAX_TOKENS, readMs: Int = 180_000): Reply = try {
+        sendClaude(apiKey, model, req, true, maxTokens, readMs)
     } catch (e: com.anthropic.errors.BadRequestException) {
         // An account or region without server-side fallback: ask once more without it.
-        if ((e.message ?: "").contains("fallback", ignoreCase = true)) sendClaude(apiKey, model, req, withFallback = false)
+        if ((e.message ?: "").contains("fallback", ignoreCase = true)) sendClaude(apiKey, model, req, false, maxTokens, readMs)
         else throw e
     }
 
-    private fun sendClaude(apiKey: String, model: String, req: LlmRequest, withFallback: Boolean): Reply {
-        val client = AnthropicOkHttpClient.builder().apiKey(apiKey).build()
+    private fun sendClaude(apiKey: String, model: String, req: LlmRequest, withFallback: Boolean, maxTokens: Long, readMs: Int): Reply {
+        val client = AnthropicOkHttpClient.builder().apiKey(apiKey)
+            .timeout(java.time.Duration.ofMillis(readMs.toLong())).maxRetries(if (readMs < 180_000) 0 else 2).build()
         try {
             val b = MessageCreateParams.builder()
                 .model(model)
-                .maxTokens(MAX_TOKENS)
+                .maxTokens(maxTokens)
                 .system(req.system())
                 .addUserMessage(req.user())
             val current = !model.startsWith("claude-haiku")
@@ -278,13 +311,13 @@ object LlmClient {
 
     // ------------------------------------------------------- OpenAI-compatible
 
-    private fun open(url: String, apiKey: String, method: String): HttpURLConnection {
+    private fun open(url: String, apiKey: String, method: String, readMs: Int = 180_000): HttpURLConnection {
         // The key goes in a header: never to an address that is not HTTPS (31 Oct 2026).
         require(url.startsWith("https://", ignoreCase = true)) { "Only HTTPS addresses are used: $url is not one." }
         return (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = method
-            connectTimeout = 30_000
-            readTimeout = 180_000
+            connectTimeout = minOf(30_000, readMs / 2)
+            readTimeout = readMs
             setRequestProperty("Authorization", "Bearer $apiKey")
             setRequestProperty("Accept", "application/json")
             // OpenRouter asks apps to name themselves; nothing about the user is in it.
@@ -322,7 +355,7 @@ object LlmClient {
                 "Paste the key from openrouter.ai/keys in the LLM panel (${p.label} → Edit)."
         else null
 
-    private fun sendCompat(p: Profile, apiKey: String, req: LlmRequest, maxTokens: Int = COMPAT_MAX_TOKENS): Reply {
+    private fun sendCompat(p: Profile, apiKey: String, req: LlmRequest, maxTokens: Int = COMPAT_MAX_TOKENS, readMs: Int = 180_000): Reply {
         require(p.model.isNotBlank()) { "No model is chosen for ${p.label}." }
         keyProblem(p, apiKey)?.let { throw IllegalStateException(it) }
         val body = JsonObject().apply {
@@ -334,7 +367,7 @@ object LlmClient {
             // OpenAI's own newer models take the second name; the rest take the first.
             addProperty(if (p.baseUrl.contains("api.openai.com")) "max_completion_tokens" else "max_tokens", maxTokens)
         }
-        val c = open(p.baseUrl.trimEnd('/') + "/chat/completions", apiKey, "POST")
+        val c = open(p.baseUrl.trimEnd('/') + "/chat/completions", apiKey, "POST", readMs)
         try {
             c.doOutput = true
             c.setRequestProperty("Content-Type", "application/json")

@@ -33,10 +33,11 @@ import java.time.LocalDate
  * step back, under Learning and Settings.
  */
 
-enum class NavPage { HOME, CHAT, CHATS, INBOX, WEEK, GOALS, NEEDS, LEARNING, SETTINGS }
+enum class NavPage { HOME, TODAY, CHAT, CHATS, INBOX, WEEK, GOALS, NEEDS, LEARNING, SETTINGS }
 
 private fun pageTitle(p: NavPage) = when (p) {
     NavPage.HOME -> "Navigator"
+    NavPage.TODAY -> "Today's conversation"
     NavPage.CHAT -> "Conversation"
     NavPage.CHATS -> "Conversations"
     NavPage.INBOX -> "Inbox"
@@ -85,6 +86,9 @@ internal fun NavigatorHome(nav: NavigatorViewModel) {
         TextButton(onClick = { nav.page = NavPage.SETTINGS }) { Text("Open Settings") }
         return
     }
+    // The day's conversation first: what you would open every evening (3 Nov 2026).
+    LinkRow("Today's conversation", "How the day went, how you feel, what is on your mind — a few minutes, kept on this phone") {
+        nav.page = NavPage.TODAY }
     CrewPanel(nav, compact = true)
     val c = counts(nav)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

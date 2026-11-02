@@ -103,6 +103,7 @@ internal fun CrewPanel(nav: NavigatorViewModel, compact: Boolean = false) {
         var draft by remember { mutableStateOf("") }
         val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
         turns.forEach { t ->
+            if (t.quick) Hint("Quick reply — the crew's full answer follows.")
             if (t.proposalId != null && t.who != "you") PackageCard(nav, t.proposalId, t.text)
             else Bubble(if (t.who == "you") t.text else com.chronos.navigator.llm.client.CrewRun.readable(t.text), mine = t.who == "you")
             // A message that did not go stays, with why and what you can do with it.

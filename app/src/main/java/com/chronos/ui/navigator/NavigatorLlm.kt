@@ -371,6 +371,17 @@ internal fun LlmPanel(nav: NavigatorViewModel) {
         if (!open) return@Panel
 
         Text(tr("Providers"), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 4.dp))
+        // Which keys answer, and how fast (3 Nov 2026): one short question on each.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(onClick = { nav.testKeys() }, enabled = !nav.testing && nav.keyed.isNotEmpty()) { Text("Test every key") }
+            if (nav.testing) CircularProgressIndicator(Modifier.padding(start = 8.dp).size(18.dp))
+        }
+        Hint("Sends one word on each key. A key that is refused, out of credit or too slow shows here; the app also learns " +
+             "from every answer and sends quick replies and fallbacks to the providers that answered fastest lately.")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(tr("Quick first reply while the crew works"), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+            Switch(checked = nav.quickOn, onCheckedChange = { nav.setQuick(it) })
+        }
         nav.profiles.forEach { p ->
             Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 RadioButton(selected = p.id == active?.id, onClick = { nav.useProfile(p.id) })
@@ -384,6 +395,14 @@ internal fun LlmPanel(nav: NavigatorViewModel) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 TextButton(onClick = { editing = p; adding = false }) { Text("Edit") }
+            }
+            nav.health[p.id]?.takeIf { it.isNotEmpty() }?.let { keys ->
+                Text(keys.entries.sortedBy { it.key }.joinToString("   ") { (tail, c) ->
+                    tail + " " + (if (c.ok) "✓ " + "%.1f".format(c.ms / 1000.0) + " s"
+                        else "✗ " + (c.error ?: "").substringBefore(':').take(40))
+                }, style = MaterialTheme.typography.labelSmall,
+                    color = if (keys.values.any { it.ok }) Palette.Moss else Palette.Brick,
+                    modifier = Modifier.padding(start = 48.dp))
             }
         }
         if (editing == null && !adding)

@@ -379,7 +379,7 @@ public final class Replan {
         return false;
     }
 
-    static boolean done(Node n) {
+    public static boolean done(Node n) {
         if (n.status == null) return false;
         String s = n.status.toLowerCase(Locale.ROOT);
         return s.startsWith("done") || s.startsWith("reached") || s.startsWith("dropped");

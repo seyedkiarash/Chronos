@@ -3574,4 +3574,68 @@ internal val Fa: Map<String, String> = mapOf(
         to "برای باز کردنش از اثر انگشت یا قفل صفحهٔ گوشی استفاده کن.",
     "Unlock"
         to "باز کردن",
+    "Today's conversation"
+        to "گفتگوی امروز",
+    "How the day went, how you feel, what is on your mind — a few minutes, kept on this phone"
+        to "روزت چطور گذشت، چه حسی داری، چه چیزی توی ذهنت است — چند دقیقه، فقط روی همین گوشی",
+    "Talk about the day: how you felt, what happened, what is on your mind, what you want. It stays on this phone. The model sees this conversation and the app's short summary of today — not your log; the crew later sees only the summary you wrap up below."
+        to "دربارهٔ امروز حرف بزن: چه حسی داشتی، چه اتفاقی افتاد، چه چیزی توی ذهنت است، چه می‌خواهی. همه‌اش روی همین گوشی می‌ماند. مدل همین گفتگو و خلاصهٔ کوتاه برنامه از امروز را می‌بیند — نه لاگ تو را؛ گروه مدل‌ها بعداً فقط خلاصه‌ای را می‌بیند که پایین‌تر جمع‌بندی می‌کنی.",
+    "No answer"
+        to "پاسخی نیامد",
+    "Ask again"
+        to "دوباره بپرس",
+    "Write as you would to a friend…"
+        to "همان‌طور بنویس که برای یک دوست می‌نویسی…",
+    "How you felt today"
+        to "امروز حالت چطور بود",
+    "1 very low · 5 very good"
+        to "۱ خیلی بد · ۵ خیلی خوب",
+    "How much pressure"
+        to "چقدر فشار",
+    "1 calm · 5 heavy"
+        to "۱ آرام · ۵ سنگین",
+    "Wrap up the day"
+        to "جمع‌بندی روز",
+    "Wrap up again"
+        to "دوباره جمع‌بندی کن",
+    "The day in brief"
+        to "امروز به‌طور خلاصه",
+    "What happened"
+        to "چه اتفاقی افتاد",
+    "Feelings"
+        to "احساس‌ها",
+    "Ideas"
+        to "ایده‌ها",
+    "Worries"
+        to "نگرانی‌ها",
+    "New limits on your time"
+        to "محدودیت‌های تازه در وقتت",
+    "About your goals"
+        to "دربارهٔ هدف‌هایت",
+    "For the Navigator"
+        to "برای ناوبری",
+    "Sent only if you tap the button: the crew then proposes changes to your goals and Chronos, for you to approve. Edit it first if you like."
+        to "فقط اگر دکمه را بزنی فرستاده می‌شود: آن‌وقت گروه مدل‌ها تغییراتی در هدف‌ها و Chronos پیشنهاد می‌دهد که خودت تأیید می‌کنی. اگر خواستی اول ویرایشش کن.",
+    "Send to the Navigator"
+        to "بفرست برای ناوبری",
+    "Sent."
+        to "فرستاده شد.",
+    "Nothing in it for your plans; it is kept in the journal, and the crew sees its summary."
+        to "چیزی برای برنامه‌هایت در آن نیست؛ در دفترچه می‌ماند و گروه مدل‌ها خلاصه‌اش را می‌بیند.",
+    "Journal"
+        to "دفترچه",
+    "{} days"
+        to "{} روز",
+    "mood"
+        to "حال",
+    "pressure"
+        to "فشار",
+    "Quick reply — the crew's full answer follows."
+        to "پاسخ سریع — پاسخ کامل گروه مدل‌ها پشت سرش می‌آید.",
+    "Test every key"
+        to "آزمایش همهٔ کلیدها",
+    "Sends one word on each key. A key that is refused, out of credit or too slow shows here; the app also learns from every answer and sends quick replies and fallbacks to the providers that answered fastest lately."
+        to "روی هر کلید یک کلمه می‌فرستد. کلیدی که رد شود، اعتبارش تمام شده باشد یا خیلی کند باشد، اینجا معلوم می‌شود؛ برنامه از هر پاسخ هم یاد می‌گیرد و پاسخ‌های سریع و جایگزین‌ها را به سرویس‌هایی می‌فرستد که اخیراً سریع‌تر جواب داده‌اند.",
+    "Quick first reply while the crew works"
+        to "پاسخ سریع اول، تا وقتی گروه مدل‌ها کار می‌کند",
 )

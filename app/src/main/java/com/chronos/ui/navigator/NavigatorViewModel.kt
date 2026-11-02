@@ -154,8 +154,10 @@ class NavigatorViewModel(private val app: Application) : AndroidViewModel(app) {
     /** You told the Navigator something: the crew starts on it in the background. */
     fun tell(text: String) = work {
         if (text.isBlank()) return@work
-        com.chronos.navigator.llm.client.CrewRun.tell(app, text)
+        val job = com.chronos.navigator.llm.client.CrewRun.tell(app, text)
         loadCrew()
+        // A first reply from the fastest model, while the crew works on the full answer (3 Nov 2026).
+        if (job != null) viewModelScope.launch(Dispatchers.IO) { com.chronos.navigator.llm.client.Quick.firstReply(app, job) }
     }
 
     /** A question about the graph itself, to the crew or through your own chat app. */
@@ -376,6 +378,7 @@ class NavigatorViewModel(private val app: Application) : AndroidViewModel(app) {
     private fun dayStart(): Long = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
     private fun readProfiles() {
+        readHealth()
         profiles = llm.profiles
         keyed = profiles.filter { KeyVault.has(app, it.id) }.map { it.id }.toSet()
         keyTails = profiles.associate { p -> p.id to KeyVault.keys(app, p.id).map { "…" + it.takeLast(4) } }
@@ -410,6 +413,91 @@ class NavigatorViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     fun useProfile(id: String) { llm.activeId = id; readProfiles() }
+
+    // ---------------------------------------------------------- answering fast (3 Nov 2026)
+
+    /** The latest result of each key, by provider. */
+    var health by mutableStateOf<Map<String, Map<String, com.chronos.navigator.llm.client.LlmHealth.Check>>>(emptyMap()); private set
+    var testLines by mutableStateOf<List<String>>(emptyList()); private set
+    var testing by mutableStateOf(false); private set
+    var quickOn by mutableStateOf(com.chronos.navigator.llm.client.Quick.on(app)); private set
+
+    private fun readHealth() {
+        com.chronos.navigator.llm.client.LlmHealth.attach(app)
+        health = llm.profiles.associate { it.id to com.chronos.navigator.llm.client.LlmHealth.latest(it.id) }
+    }
+
+    /** One short question on every key: which answer, and how fast. */
+    fun testKeys() {
+        if (testing) return
+        testing = true
+        viewModelScope.launch {
+            try {
+                testLines = withContext(Dispatchers.IO) { com.chronos.navigator.llm.client.Quick.testAll(app) }
+                readHealth()
+            } catch (e: Exception) { message = e.message } finally { testing = false }
+        }
+    }
+
+    fun setQuick(on: Boolean) { com.chronos.navigator.llm.client.Quick.setOn(app, on); quickOn = on }
+
+    // ---------------------------------------------------------- the day's conversation (3 Nov 2026)
+
+    var today by mutableStateOf<com.chronos.navigator.llm.client.Companion.Day?>(null); private set
+    var journal by mutableStateOf<List<com.chronos.navigator.llm.client.Companion.Day>>(emptyList()); private set
+    /** A model is answering in the day's conversation. */
+    var talking by mutableStateOf(false); private set
+
+    private fun day() = ChronosRepository.logicalToday()
+
+    private fun talk(block: () -> com.chronos.navigator.llm.client.Companion.Day?) {
+        if (talking) return
+        talking = true
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) { block()?.let { today = it } }
+            } catch (e: Exception) {
+                message = e.message ?: "No model answered."
+            } finally {
+                withContext(Dispatchers.IO) {
+                    today = com.chronos.navigator.llm.client.Companion.read(app, day())
+                    journal = com.chronos.navigator.llm.client.Companion.days(app)
+                }
+                talking = false
+            }
+        }
+    }
+
+    fun openToday() = viewModelScope.launch(Dispatchers.IO) {
+        today = com.chronos.navigator.llm.client.Companion.open(app, day())
+        journal = com.chronos.navigator.llm.client.Companion.days(app)
+    }
+
+    fun sayToday(text: String) {
+        if (text.isBlank()) return
+        // Your words show at once; the answer follows.
+        today = today?.let { it.copy(turns = it.turns + com.chronos.navigator.llm.client.Companion.Turn("you", text.trim(), System.currentTimeMillis())) }
+        talk { com.chronos.navigator.llm.client.Companion.say(app, day(), text) }
+    }
+
+    fun answerAgain() = talk { com.chronos.navigator.llm.client.Companion.answer(app, day()) }
+
+    fun setMood(mood: Int?, stress: Int?) = viewModelScope.launch(Dispatchers.IO) {
+        today = com.chronos.navigator.llm.client.Companion.setMood(app, day(), mood, stress)
+    }
+
+    fun wrapToday() = talk { com.chronos.navigator.llm.client.Companion.wrap(app, day()) }
+
+    /** The day's message for the Navigator, sent as if you had written it (you read it first on the page). */
+    fun sendToNavigator(text: String) {
+        if (text.isBlank()) return
+        tell(text)
+        viewModelScope.launch(Dispatchers.IO) {
+            com.chronos.navigator.llm.client.Companion.markSent(app, day())
+            today = com.chronos.navigator.llm.client.Companion.read(app, day())
+        }
+        page = NavPage.CHAT
+    }
 
     /** The models a provider offers; the key typed in the form is used if there is one, else the saved one. */
     fun fetchModels(p: Profile, typedKey: String?) = work {
