@@ -169,7 +169,7 @@ internal fun NetworkPanel(nav: NavigatorViewModel, g: Graph) {
         out.toSet()
     }
 
-    Panel("Map of the whole path", Palette.Indigo) {
+    Panel("Map of the whole path", Palette.Steel) {
         Hint("Columns are stretches of time — months while they are near, then quarters, then years — and rows are " +
              "the phases. Each node sits where it will likely finish; colour is its chance of meeting its deadline. " +
              "Tap a node: the chain that decides its date turns red. Drag sideways to move, pinch to zoom.")
@@ -378,8 +378,17 @@ private fun IdeasPanel(nav: NavigatorViewModel) {
                 Hint(i.why)
                 i.firstStep?.let { Hint(tr("First step") + ": " + it) }
                 i.check?.let { Hint(tr("To check") + ": " + it) }
+                val job = nav.ideaJob(i)
+                when {
+                    job == null -> Hint("It stays here until you decide. The Navigator works out what it would change, and you see the effect on every path before anything is applied.")
+                    job.status == "RUNNING" -> Text(tr("The Navigator is working out what it would change…"), style = MaterialTheme.typography.labelSmall, color = Palette.Indigo)
+                    job.status == "FAILED" -> Text(tr("Not sent") + ": " + (job.error ?: "").lineSequence().first().take(160), style = MaterialTheme.typography.labelSmall, color = Palette.Brick)
+                    job.proposalId != null -> TextButton(onClick = { nav.openProposal = job.proposalId }) { Text(tr("See what it would change") + " ›") }
+                    else -> TextButton(onClick = { nav.openIdeaChat(job) }) { Text(tr("The Navigator answered") + " ›") }
+                }
                 Row {
-                    TextButton(onClick = { nav.takeIdea(i) }, enabled = !nav.busy) { Text("Bring it to the Navigator") }
+                    if (job == null) TextButton(onClick = { nav.takeIdea(i) }, enabled = !nav.busy) { Text("Bring it to the Navigator") }
+                    if (job?.status == "FAILED") TextButton(onClick = { nav.takeIdea(i) }, enabled = !nav.busy) { Text("Send again") }
                     TextButton(onClick = { nav.dropIdea(i) }) { Text("Not for me") }
                 }
             }

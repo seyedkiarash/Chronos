@@ -223,7 +223,9 @@ object Quick {
  * own, outside the graph and the forecast, until you bring one to the Navigator and approve its package.
  */
 object PathIdeas {
-    data class Idea(val id: String, val path: String?, val title: String, val why: String, val firstStep: String?, val check: String?)
+    /** @param jobId the message that took it to the Navigator; null until you send it */
+    data class Idea(val id: String, val path: String?, val title: String, val why: String, val firstStep: String?, val check: String?,
+                    val jobId: String? = null)
 
     private val gson = com.google.gson.GsonBuilder().disableHtmlEscaping().create()
     private fun file(context: Context) = java.io.File(context.filesDir, "navigator-path-ideas.json")
@@ -235,6 +237,9 @@ object PathIdeas {
     private fun save(context: Context, ideas: List<Idea>) = file(context).writeText(gson.toJson(ideas))
 
     fun drop(context: Context, id: String): List<Idea> = read(context).filter { it.id != id }.also { save(context, it) }
+
+    fun mark(context: Context, id: String, jobId: String?): List<Idea> =
+        read(context).map { if (it.id == id) it.copy(jobId = jobId) else it }.also { save(context, it) }
 
     private const val SYSTEM = "You help a university student see ways to their goals they may not have considered. You get " +
         "their main paths and branches. Suggest up to 4 realistic alternatives or additions that are NOT already there: other " +

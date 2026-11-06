@@ -310,7 +310,8 @@ object CrewRun {
 
     /** A job on the same words still running, or started in the last ten minutes: sending it twice asks once. */
     private fun same(context: Context, kind: String, message: String): Job? =
-        jobs(context).firstOrNull { it.kind == kind && it.message?.trim() == message.trim() &&
+        // Not one that failed: sending that again must really send it (it vanished before, 7 Nov 2026).
+        jobs(context).firstOrNull { it.kind == kind && it.message?.trim() == message.trim() && it.status != "FAILED" &&
             (it.status == "RUNNING" || System.currentTimeMillis() - it.createdAt < 10 * 60_000L) }
 
     /** Marks your message as not sent, with why. */
@@ -451,6 +452,150 @@ object CrewRun {
         older.forEach { inbox.markOutdated(it.id(), if (fa) "خواندن تازه‌تری از لاگت جایش را گرفت" else "A newer reading of your log replaced it") }
         finish(context, job, id, parsed.message() ?: summary)
         return id
+    }
+
+    /**
+     * More work than the hours hold (7 Nov 2026): every deadline, near and far, against the expected hours;
+     * then what could give way, the least important first, each with what it would do to the rest, measured
+     * here and in a package for you to approve piece by piece. No model is needed. Null when everything fits.
+     */
+    fun density(context: Context, why: String): String? {
+        val base = base(context)
+        val fa = language(context) == "fa"
+        val logs = DatabaseWiring.repository(context).logs()
+        val inputs = Bridge.inputs(base.g, base.cfg, logs, DatabaseWiring.navigator(context).links(), DatabaseWiring.navigator(context).dayTypes())
+        val report = com.chronos.navigator.forecast.Density.of(base.g, inputs, base.today, chronosLoads(base))
+        val crunch = report.crunch() ?: return null
+        val changes = JsonArray()
+        for (f in report.giving()) givingChange(base, f, fa)?.let { changes.add(it) }
+        standingChanges(base, fa).forEach { changes.add(it) }
+        if (changes.size() == 0) return null
+        // Each piece measured alone, so you see what that one would do.
+        changes.forEach { c ->
+            val one = JsonObject().apply { addProperty("summary", ""); addProperty("rationale", ""); addProperty("message", "")
+                add("changes", JsonArray().apply { add(c) })
+                add("consent_self_check", JsonObject().apply { addProperty("targets_other_person", false) }) }
+            val parsed = ChangeSet.read(base.g, base.today, base.chronos, one)
+            if (!parsed.ok() || parsed.empty()) return@forEach
+            val m = runCatching { measure(context, base, parsed.ops(), max(10, base.worlds / 2), max(20, base.futures * 3 / 4)) }.getOrNull() ?: return@forEach
+            val moved = m.verdict.moves().filter { !it.before().p().isNaN() && kotlin.math.abs(it.delta()) >= 0.03 }
+                .sortedByDescending { kotlin.math.abs(it.delta()) }.take(3)
+            val o = c.asJsonObject
+            if (moved.isNotEmpty()) o.addProperty("why", o.get("why").asString + " " + (if (fa) "اثر: " else "Effect: ") +
+                moved.joinToString(", ") { (base.g.node(it.nodeId())?.shortName() ?: it.title()) + " " + Math.round(it.before().p() * 100) + "→" + Math.round(it.after().p() * 100) + "%" })
+        }
+        val summary = if (fa) "تا ${crunch.until()} حدود ${Math.round(crunch.need())} ساعت کار داری و حدود ${Math.round(crunch.have())} ساعت وقت."
+            else "By ${crunch.until()} you have about ${Math.round(crunch.need())} hours of work and about ${Math.round(crunch.have())} hours for it."
+        val text = JsonObject().apply {
+            addProperty("summary", summary)
+            addProperty("rationale", if (fa) "همهٔ ددلاین‌ها، نزدیک و دور، با ساعت‌های یادگرفته‌شده از لاگ سنجیده شد. هر کدام را جدا تأیید کن یا کنار بگذار؛ اولویت با چیزهایی است که اهمیت کمتری دارند."
+                else "Every deadline, near and far, against the hours learned from your log. Approve each on its own or leave it; the least important come first.")
+            addProperty("message", (if (fa) "کارها از وقتت بیشتر است. " else "There is more work than time. ") + summary +
+                (if (fa) " چند راه برای سبک کردنش در صندوق منتظر تصمیم توست." else " Ways to lighten it wait in the inbox for your decision."))
+            add("changes", changes)
+            add("consent_self_check", JsonObject().apply { addProperty("targets_other_person", false) })
+        }
+        val parsed = ChangeSet.read(base.g, base.today, base.chronos, text)
+        if (!parsed.ok() || parsed.empty()) return null
+        val job = Job(java.util.UUID.randomUUID().toString(), "DENSITY", why, System.currentTimeMillis())
+        save(context, job)
+        val measured = measure(context, base, parsed.ops())
+        val inbox = NavProposals(DatabaseWiring.navigator(context).dao())
+        val older = inbox.proposals().filter { it.status() == "PENDING" && it.crew()?.get("kind")?.asString == "DENSITY" }
+        val id = file(context, job, base, parsed, measured, null, null, 1, emptyList())
+        older.forEach { inbox.markOutdated(it.id(), if (fa) "سنجش تازه‌تری جایش را گرفت" else "A newer check replaced it") }
+        finish(context, job, id, parsed.message() ?: summary)
+        return id
+    }
+
+    fun densityWithin(context: Context, days: Long): Boolean =
+        jobs(context).any { it.kind == "DENSITY" && it.createdAt > System.currentTimeMillis() - days * 86_400_000L }
+
+    /** Chronos's dated goals that no node carries: their hours count too, and the less important ones may give way. */
+    private fun chronosLoads(base: Base): List<com.chronos.navigator.forecast.Density.Load> {
+        val onNodes = Bridge.nodeActivities(base.g, base.cfg, emptyMap()).values.flatten().toSet()
+        return base.cfg.goals.mapNotNull { g ->
+            if (g.mode != com.chronos.model.Enums.GoalMode.CLOSED || g.deadline == null || g.deadline.isBefore(base.today)) return@mapNotNull null
+            val acts = base.cfg.activities.filter { it.goalId == g.id && !it.archived && it.name != null }
+            if (acts.isEmpty() || acts.any { com.chronos.navigator.model.Requirements.norm(it.name) in onNodes }) return@mapNotNull null
+            val bias = acts.firstNotNullOfOrNull { base.g.params[com.chronos.navigator.estimate.Estimator.POST + "bias." + com.chronos.navigator.model.Requirements.norm(it.name)]?.get("median") } ?: 1.0
+            val hours = g.remainingUnits() * (g.hoursPerUnit ?: 0.0) * bias
+            if (hours < 0.5) return@mapNotNull null
+            val importance = when (g.tier) { 0 -> 2; 1 -> 1; else -> 0 }
+            com.chronos.navigator.forecast.Density.Load(g.name?.trim() ?: g.id, g.name?.trim() ?: g.id, "goal:" + g.id, hours, g.deadline, importance, g.hard, true)
+        }
+    }
+
+    /** Standing hours of the least important kind, four weeks without them: time freed at once, nothing given up for good. */
+    private fun standingChanges(base: Base, fa: Boolean): List<JsonObject> {
+        val until = base.today.plusDays(28)
+        return base.g.nodes.values.filter { n ->
+            n.weeklyFloorH != null && n.deadline == null && !n.hard && !n.expanded && !com.chronos.navigator.llm.Replan.done(n) &&
+                com.chronos.navigator.model.Priority.of(n) == com.chronos.navigator.model.Priority.OPTIONAL && n.owner == com.chronos.navigator.model.Kinds.Owner.USER
+        }.sortedByDescending { it.weeklyFloorH }.take(2).map { n ->
+            val actions = JsonArray().apply {
+                add(JsonObject().apply { addProperty("type", "pause"); addProperty("node", n.id)
+                    addProperty("from", base.today.toString()); addProperty("until", until.toString()) })
+                n.activities.forEach { a ->
+                    add(JsonObject().apply { addProperty("type", "pause_activity"); addProperty("activity", a)
+                        addProperty("from", base.today.toString()); addProperty("until", until.toString()) })
+                }
+            }
+            JsonObject().apply {
+                addProperty("title", if (fa) "«${n.shortName()}» را چهار هفته نگه دار" else "Pause \"${n.shortName()}\" for four weeks")
+                addProperty("why", if (fa) "${com.chronos.navigator.bridge.Sync.num(n.weeklyFloorH)} ساعت در هفته آزاد می‌شود و بعد خودش برمی‌گردد."
+                    else "Frees ${com.chronos.navigator.bridge.Sync.num(n.weeklyFloorH)} hours a week, and comes back by itself.")
+                add("actions", actions)
+            }
+        }
+    }
+
+    /** One way to give way: a family of nodes moved along, or a Chronos goal let go. */
+    private fun givingChange(base: Base, f: com.chronos.navigator.forecast.Density.Giving, fa: Boolean): JsonObject? {
+        val actions = JsonArray()
+        val first = f.members().first()
+        if (first.chronos()) {
+            val goal = base.cfg.goals.firstOrNull { (it.name?.trim() ?: it.id) == first.id() } ?: return null
+            val act = base.cfg.activities.firstOrNull { it.goalId == goal.id && !it.archived } ?: return null
+            actions.add(JsonObject().apply { addProperty("type", "archive_activity"); addProperty("activity", act.name) })
+            return JsonObject().apply {
+                addProperty("title", if (fa) "«${first.title()}» را رها کن" else "Let \"${first.title()}\" go")
+                addProperty("why", if (fa) "حدود ${Math.round(first.hours())} ساعت کار تا ${first.due()} و اهمیت کمتر از بقیه. لاگش می‌ماند و هر وقت خواستی برمی‌گردد."
+                    else "About ${Math.round(first.hours())} hours by ${first.due()}, and less important than the rest. Its log stays and you can bring it back.")
+                add("actions", actions)
+            }
+        }
+        val reach = f.reachable() ?: return null
+        if (!reach.isAfter(f.lastDue())) return null
+        // The whole family, earliest to last, stretched to the date the hours really reach.
+        val span = java.time.temporal.ChronoUnit.DAYS.between(base.today, f.lastDue()).coerceAtLeast(1).toDouble()
+        val factor = java.time.temporal.ChronoUnit.DAYS.between(base.today, reach).toDouble() / span
+        val ids = f.members().map { it.id() }.toMutableSet()
+        // What waits for them moves with them, if it is yours to move.
+        var grew = true
+        while (grew) {
+            grew = false
+            for (n in base.g.nodes.values) if (n.id !in ids && n.deadline != null && !n.hard && !n.hardDeadline &&
+                n.owner == com.chronos.navigator.model.Kinds.Owner.USER &&
+                base.g.into(n.id, com.chronos.navigator.model.Kinds.EdgeKind.AND).any { it.from() in ids } && n.deadline.isBefore(reach)) { ids += n.id; grew = true }
+        }
+        for (id in ids) {
+            val n = base.g.node(id) ?: continue
+            val due = n.deadline ?: continue
+            val days = java.time.temporal.ChronoUnit.DAYS.between(base.today, due).coerceAtLeast(1)
+            var moved = base.today.plusDays(Math.ceil(days * factor).toLong())
+            base.g.horizonEnd?.let { if (moved.isAfter(it)) moved = it }
+            if (!moved.isAfter(due)) continue
+            actions.add(JsonObject().apply { addProperty("type", "move_deadline"); addProperty("node", id); addProperty("new_deadline", moved.toString()) })
+        }
+        if (actions.size() == 0) return null
+        val name = base.g.node(f.members().last().id())?.shortName() ?: first.title()
+        return JsonObject().apply {
+            addProperty("title", if (fa) "«$name» را تا $reach عقب ببر" else "Move \"$name\" to about $reach")
+            addProperty("why", if (fa) "حدود ${Math.round(f.hours())} ساعت کار دارد و با ساعت‌هایت تا ${f.lastDue()} نمی‌رسد. می‌توانی به‌جایش ساعتش را بیشتر کنی یا کمی از آن را کنار بگذاری."
+                else "About ${Math.round(f.hours())} hours of work, which your hours do not reach by ${f.lastDue()}. You could instead give it more hours, or set part of it aside.")
+            add("actions", actions)
+        }
     }
 
     /** Whether the log was read for the setup within the last days. */
@@ -792,12 +937,18 @@ object CrewRun {
         } catch (e: Exception) {
             android.util.Log.w("Navigator", "crew job failed", e)
             job.status = "FAILED"
-            job.error = e.message ?: e.javaClass.simpleName
+            job.error = plainWhy(e.message ?: e.javaClass.simpleName)
             job.steps.filter { it.status == "RUNNING" || it.status == "WAITING" }.forEach { it.status = "SKIPPED" }
             save(context, job)
             if (job.kind != "WEEKLY") markFailed(context, job.id, job.error ?: "")
         }
     }
+
+    /** When every provider refused this network, that is what to say, not their several error messages. */
+    private fun plainWhy(err: String): String =
+        if (Regex("location is not supported|Access denied|not available on this network|Unable to resolve host", RegexOption.IGNORE_CASE).containsMatchIn(err))
+            "The providers cannot be reached from this network. Turn on a VPN, then send it again."
+        else err
 
     /** The answer's words: its `message` when it ended with the JSON, else the reply as written. */
     private fun prose(text: String): String {
@@ -1051,14 +1202,14 @@ object CrewRun {
         val inbox = NavProposals(DatabaseWiring.navigator(context).dao())
         val target = JsonObject().apply {
             addProperty("kind", "CREW"); addProperty("subject", job.id)
-            addProperty("trigger", when (job.kind) { "WEEKLY" -> "weekly_review"; "HABITS" -> "your_log"; else -> "you" })
+            addProperty("trigger", when (job.kind) { "WEEKLY" -> "weekly_review"; "HABITS" -> "your_log"; "DENSITY" -> "too_dense"; else -> "you" })
         }
         val req = LlmRequest(Crew.TASK, target, "", "", false)
         val effects = measured.verdict.moves().filter { !it.before().p().isNaN() }
             .map { ProposalValidator.Effect(it.nodeId(), it.before().p(), it.after().p()) }
         val result = ProposalValidator.Result(true, set.ops(), set.summary(), set.rationale(), emptyList(), null,
             listOf("shape", "references", "consent", "ownership", "numbers", "measured"),
-            when (job.kind) { "WEEKLY" -> "Weekly review"; "HABITS" -> "From your log"; else -> (job.message ?: "").take(60) }, effects)
+            when (job.kind) { "WEEKLY" -> "Weekly review"; "HABITS" -> "From your log"; "DENSITY" -> "More than the time holds"; else -> (job.message ?: "").take(60) }, effects)
         val crew = JsonObject().apply {
             addProperty("job", job.id)
             addProperty("kind", job.kind)

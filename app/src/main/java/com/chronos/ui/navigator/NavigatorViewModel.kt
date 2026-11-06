@@ -152,8 +152,9 @@ class NavigatorViewModel(private val app: Application) : AndroidViewModel(app) {
     val freeCap get() = crew.freeDailyCap
 
     /** You told the Navigator something: the crew starts on it in the background. */
-    fun tell(text: String) = work {
+    fun tell(text: String, fresh: Boolean = false) = work {
         if (text.isBlank()) return@work
+        if (fresh) com.chronos.navigator.llm.client.CrewRun.newChat(app)
         val job = com.chronos.navigator.llm.client.CrewRun.tell(app, text)
         loadCrew()
         // A first reply from the fastest model, while the crew works on the full answer (3 Nov 2026).
@@ -161,8 +162,9 @@ class NavigatorViewModel(private val app: Application) : AndroidViewModel(app) {
     }
 
     /** A question about the graph itself, to the crew or through your own chat app. */
-    fun askGraph(text: String) = work {
+    fun askGraph(text: String, fresh: Boolean = false) = work {
         if (text.isBlank()) return@work
+        if (fresh) com.chronos.navigator.llm.client.CrewRun.newChat(app)
         if (relayMode) {
             computing = true
             try { com.chronos.navigator.llm.client.CrewRun.prepareRelay(app, "GRAPH", text) } finally { computing = false }
@@ -176,8 +178,9 @@ class NavigatorViewModel(private val app: Application) : AndroidViewModel(app) {
     fun setRelay(on: Boolean) { crew.relay = on; relayMode = on }
 
     /** Your message as one question for your own chat app; the card in the chat takes it from there. */
-    fun tellRelay(text: String) = work {
+    fun tellRelay(text: String, fresh: Boolean = false) = work {
         if (text.isBlank()) return@work
+        if (fresh) com.chronos.navigator.llm.client.CrewRun.newChat(app)
         computing = true
         try { com.chronos.navigator.llm.client.CrewRun.prepareRelay(app, "INTAKE", text) } finally { computing = false }
         loadCrew()
@@ -465,11 +468,40 @@ class NavigatorViewModel(private val app: Application) : AndroidViewModel(app) {
     fun dropIdea(i: com.chronos.navigator.llm.client.PathIdeas.Idea) =
         viewModelScope.launch(Dispatchers.IO) { pathIdeas = com.chronos.navigator.llm.client.PathIdeas.drop(app, i.id) }
 
-    /** An idea you want looked at: it goes to the Navigator as your message, and comes back as a package to approve. */
-    fun takeIdea(i: com.chronos.navigator.llm.client.PathIdeas.Idea) {
-        tell(com.chronos.navigator.llm.client.PathIdeas.message(app, i))
-        dropIdea(i)
-        page = NavPage.CHAT
+    /**
+     * An idea you want looked at: it goes to the Navigator as your message and comes back as a package with its
+     * effects, to approve. It stays on the list with how that is going, so nothing is lost if the message fails.
+     */
+    fun takeIdea(i: com.chronos.navigator.llm.client.PathIdeas.Idea) = work {
+        com.chronos.navigator.llm.client.CrewRun.newChat(app)
+        val job = com.chronos.navigator.llm.client.CrewRun.tell(app, com.chronos.navigator.llm.client.PathIdeas.message(app, i))
+        pathIdeas = com.chronos.navigator.llm.client.PathIdeas.mark(app, i.id, job?.id)
+        if (job == null) message = "Set up the crew's models in the LLM panel first."
+        loadCrew()
+    }
+
+    /** How an idea sent to the Navigator is going, or null while it has not been sent. */
+    fun ideaJob(i: com.chronos.navigator.llm.client.PathIdeas.Idea) = i.jobId?.let { id -> jobs.firstOrNull { it.id == id } ?: com.chronos.navigator.llm.client.CrewRun.job(app, id) }
+
+    fun openIdeaChat(job: com.chronos.navigator.llm.client.CrewRun.Job) { job.chatId?.let { openChat(it) } }
+
+    // ------------------------------------------------- more work than time (7 Nov 2026)
+
+    var checkingDensity by mutableStateOf(false); private set
+
+    /** Checks every deadline against the hours; what could give way goes to the inbox as a package. */
+    fun checkDensity() {
+        if (checkingDensity) return
+        checkingDensity = true
+        viewModelScope.launch {
+            try {
+                val id = withContext(Dispatchers.IO) { com.chronos.navigator.llm.client.CrewRun.density(app, "you asked") }
+                withContext(Dispatchers.IO) { load(); loadCrew() }
+                if (id == null) message = "Everything fits the hours you have, as far as the log can tell." else openProposal = id
+            } catch (e: Exception) {
+                message = e.message ?: "The check could not finish."
+            } finally { checkingDensity = false }
+        }
     }
 
     // ---------------------------------------------------- a place on the graph (6 Nov 2026)

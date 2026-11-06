@@ -194,18 +194,44 @@ public class ChronosRepository {
         java.util.TreeSet<LocalDate> out = new java.util.TreeSet<>();
         AppStateRow r = stateDao.get();
         if (r == null || r.restDays == null || r.restDays.isBlank()) return out;
-        for (String s : r.restDays.split(",")) if (!s.isBlank()) out.add(LocalDate.parse(s.trim()));
+        for (String s : r.restDays.split(",")) if (!s.isBlank() && !s.contains("@")) out.add(LocalDate.parse(s.trim()));
         return out;
+    }
+
+    /** Days you chose to run lighter (7 Nov 2026), with the share of a normal day kept, in percent. Kept beside the rest days. */
+    public java.util.TreeMap<LocalDate, Integer> lightDays() {
+        java.util.TreeMap<LocalDate, Integer> out = new java.util.TreeMap<>();
+        AppStateRow r = stateDao.get();
+        if (r == null || r.restDays == null || r.restDays.isBlank()) return out;
+        for (String s : r.restDays.split(",")) if (s.contains("@")) {
+            String[] p = s.trim().split("@");
+            out.put(LocalDate.parse(p[0]), Integer.parseInt(p[1]));
+        }
+        return out;
+    }
+
+    /** Runs a day at this share of normal; null makes it a normal day again. */
+    public void setLightDay(LocalDate date, Integer keepPercent) {
+        java.util.TreeMap<LocalDate, Integer> light = lightDays();
+        if (keepPercent == null) light.remove(date); else light.put(date, keepPercent);
+        storeRestAndLight(restDays(), light);
+    }
+
+    private void storeRestAndLight(java.util.TreeSet<LocalDate> rest, java.util.Map<LocalDate, Integer> light) {
+        LocalDate keepFrom = logicalToday().minusDays(PAST_DAYS_KEPT);
+        java.util.List<String> parts = new java.util.ArrayList<>();
+        for (LocalDate d : rest) if (!d.isBefore(keepFrom)) parts.add(d.toString());
+        for (java.util.Map.Entry<LocalDate, Integer> e : light.entrySet())
+            if (!e.getKey().isBefore(keepFrom)) parts.add(e.getKey() + "@" + e.getValue());
+        String joined = String.join(",", parts);
+        mutateState(r -> r.restDays = joined);
     }
 
     /** Makes a day a rest day or a normal one again. A month of history is kept. */
     public void setRestDay(LocalDate date, boolean rest) {
         java.util.TreeSet<LocalDate> days = restDays();
         if (rest) days.add(date); else days.remove(date);
-        LocalDate keepFrom = logicalToday().minusDays(PAST_DAYS_KEPT);
-        String joined = String.join(",", days.stream().filter(d -> !d.isBefore(keepFrom))
-            .map(LocalDate::toString).toList());
-        mutateState(r -> r.restDays = joined);
+        storeRestAndLight(days, lightDays());
     }
 
     public boolean isRestDay(LocalDate date) { return restDays().contains(date); }
@@ -445,6 +471,7 @@ public class ChronosRepository {
      */
     private double[] scaleFor(LocalDate start, int days, double[] ramp) {
         java.util.TreeSet<LocalDate> rest = restSet();
+        java.util.TreeMap<LocalDate, Integer> light = lightDays();
         double[] out = new double[days];
         for (int i = 0; i < days; i++) {
             LocalDate d = start.plusDays(i);
@@ -452,6 +479,8 @@ public class ChronosRepository {
             LocalDate last = rest.lower(d);
             long since = last == null ? Long.MAX_VALUE : ChronoUnit.DAYS.between(last, d);
             out[i] = since >= 1 && since <= ramp.length ? ramp[(int) since - 1] : 1;
+            Integer keep = light.get(d);
+            if (keep != null) out[i] = Math.min(out[i], keep / 100.0);
         }
         return out;
     }

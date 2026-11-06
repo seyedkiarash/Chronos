@@ -59,7 +59,7 @@ object Sync {
 
     private fun done(n: Node) = n.status?.lowercase()?.let { it.startsWith("done") || it.startsWith("reached") } == true
 
-    private fun num(v: Double) = if (v == Math.rint(v)) v.toLong().toString() else "%.2f".format(v).trimEnd('0').trimEnd('.')
+    fun num(v: Double) = if (v == Math.rint(v)) v.toLong().toString() else "%.2f".format(v).trimEnd('0').trimEnd('.')
 
     fun diffs(context: Context): List<Diff> {
         val store = DatabaseWiring.navigator(context)

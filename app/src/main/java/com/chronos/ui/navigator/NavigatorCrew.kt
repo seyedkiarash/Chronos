@@ -62,12 +62,11 @@ private fun stepColor(s: String) = when (s) { "DONE" -> Palette.Moss; "FAILED" -
 @Composable
 internal fun CrewPanel(nav: NavigatorViewModel, compact: Boolean = false) {
     Panel("Tell the Navigator", Palette.Indigo) {
-        if (!compact || nav.chat.isEmpty())
-            Hint("Say what is going on — a task your advisor gave you, a change of plans, something you want. A crew of " +
-                 "models works out what to change in your goals and in Chronos; the app measures it, and you approve " +
-                 "the parts you want. Nothing changes before that.")
-        // Where your messages go: the crew's models, or your own chat app (copy and return).
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+        Hint("Say what is going on — a task your advisor gave you, a change of plans, something you want. A crew of " +
+             "models works out what to change in your goals and in Chronos; the app measures it, and you approve " +
+             "the parts you want. Nothing changes before that.")
+        // Where your messages go: the crew's models, or your own chat app (copy and return). A setting: not on the home.
+        if (!compact) Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
             Text(tr("Ask through") + ":", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(end = 6.dp))
             Pill(tr("The crew"), !nav.relayMode) { nav.setRelay(false) }
             Spacer(Modifier.width(6.dp))
@@ -85,21 +84,22 @@ internal fun CrewPanel(nav: NavigatorViewModel, compact: Boolean = false) {
         // Each question its own conversation (your request of 28 Oct 2026): which one is open, a new one, the others.
         val open = nav.chats.firstOrNull { it.id == nav.chatId }
         val idle = open != null && !open.fromApp && System.currentTimeMillis() - open.lastAt > 12 * 3_600_000L
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        // On the home, always a new empty conversation (your request of 7 Nov 2026); the earlier ones one tap away.
+        if (compact) {
+            val working = nav.jobs.count { it.status == "RUNNING" }
+            if (working > 0) TextButton(onClick = { nav.page = NavPage.CHAT }) { Text(tr("The Navigator is working on your message") + " ›") }
+            if (nav.chats.isNotEmpty())
+                TextButton(onClick = { nav.page = NavPage.CHATS }) { Text(tr("Earlier conversations") + " (" + nav.chats.size + ") ›") }
+        } else Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(if (open == null) tr("New conversation") else tr(open.title), style = MaterialTheme.typography.labelMedium,
                 color = Palette.Indigo, maxLines = 1, modifier = Modifier.weight(1f))
             if (open != null) TextButton(onClick = { nav.newChat() }, enabled = !nav.busy) { Text("New") }
             if (nav.chats.isNotEmpty())
                 TextButton(onClick = { nav.page = NavPage.CHATS }) { Text(tr("All") + " (" + nav.chats.size + ") ›") }
         }
-        if (open?.fromApp == true) Hint("What the app sent by itself: weekly reviews and readings of your log. A message you write here starts a conversation of its own.")
-        else if (idle) Hint("This conversation has been quiet for half a day: your next message starts a new one. It stays under All.")
-        // On the home the last few turns; the whole conversation on its own page.
-        val turns = nav.chat.takeLast(if (compact) 3 else 400)
-        if (nav.chat.size > turns.size)
-            TextButton(onClick = { nav.page = NavPage.CHAT }) {
-                Text(tr("Full conversation") + " (" + nav.chat.size + ") ›")
-            }
+        if (!compact && open?.fromApp == true) Hint("What the app sent by itself: weekly reviews and readings of your log. A message you write here starts a conversation of its own.")
+        else if (!compact && idle) Hint("This conversation has been quiet for half a day: your next message starts a new one. It stays under All.")
+        val turns = if (compact) emptyList() else nav.chat.takeLast(400)
         var draft by remember { mutableStateOf("") }
         val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
         turns.forEach { t ->
@@ -119,8 +119,8 @@ internal fun CrewPanel(nav: NavigatorViewModel, compact: Boolean = false) {
                 }
             }
         }
-        nav.jobs.filter { it.status == "RUNNING" }.forEach { JobProgress(it) }
-        nav.jobs.filter { it.relay && (it.status == "PREPARING" || it.status == "WAITING_ANSWER") }
+        if (!compact) nav.jobs.filter { it.status == "RUNNING" }.forEach { JobProgress(it) }
+        if (!compact) nav.jobs.filter { it.relay && (it.status == "PREPARING" || it.status == "WAITING_ANSWER") }
             .sortedBy { it.createdAt }.forEach { RelayCard(nav, it) }
         // What the message is: a situation to act on, or a question about the graph itself (your request of 22 Oct 2026).
         var aboutGraph by remember { mutableStateOf(false) }
@@ -134,11 +134,13 @@ internal fun CrewPanel(nav: NavigatorViewModel, compact: Boolean = false) {
         fun send() {
             val t = draft.trim()
             when {
-                aboutGraph -> nav.askGraph(t)
-                nav.relayMode -> nav.tellRelay(t)
-                else -> nav.tell(t)
+                aboutGraph -> nav.askGraph(t, fresh = compact)
+                nav.relayMode -> nav.tellRelay(t, fresh = compact)
+                else -> nav.tell(t, fresh = compact)
             }
             draft = ""
+            // From the home the conversation continues on its own page.
+            if (compact) nav.page = NavPage.CHAT
         }
         OutlinedTextField(value = draft, onValueChange = { draft = it }, modifier = Modifier.fillMaxWidth(), minLines = 2,
             placeholder = { Text(tr(if (aboutGraph) "e.g. Why is the chance of my master's application so low?"
@@ -149,13 +151,13 @@ internal fun CrewPanel(nav: NavigatorViewModel, compact: Boolean = false) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Button(onClick = { send() }, enabled = draft.isNotBlank() && !nav.busy) { Text("Send") }
             Spacer(Modifier.width(8.dp))
-            OutlinedButton(onClick = { if (nav.relayMode) nav.reviewRelay() else nav.reviewNow() },
+            if (!compact) OutlinedButton(onClick = { if (nav.relayMode) nav.reviewRelay() else nav.reviewNow() },
                 enabled = !nav.busy && nav.jobs.none { (it.status == "RUNNING" || it.status == "PREPARING") && it.kind == "WEEKLY" }) {
                 Text("Review the week now")
             }
         }
         if (nav.computing) LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical = 4.dp))
-        if (!nav.relayMode)
+        if (!compact && !nav.relayMode)
             Hint(tr("Free requests left today") + ": " + nav.freeLeft + " / " + nav.freeCap + "  ·  " +
                  tr("a message takes about 3 to 6, a weekly review 4 to 6."))
         if (nav.chat.isNotEmpty() && !compact) {
@@ -407,19 +409,43 @@ private fun EffectLine(crew: JsonObject) {
         color = if (bad) Palette.Brick else Palette.Moss, modifier = Modifier.padding(top = 8.dp))
 }
 
+/** What the package does to each main path, in a line each: seen before anything is applied. */
+@Composable
+private fun PathEffects(byPath: Map<String?, List<JsonObject>>) {
+    if (byPath.isEmpty()) return
+    Panel("What it does to your paths", Palette.Plum) {
+        byPath.forEach { (title, list) ->
+            val lines = list.mapNotNull { o ->
+                val after = o.obj("after")?.d("p") ?: return@mapNotNull null
+                val name = o.s("title") ?: o.s("goal") ?: ""
+                val before = o.obj("before")?.d("p")
+                name + " " + (if (before != null) pct(before) + " → " else "") + pct(after)
+            }
+            Text(tr(title ?: "New on the graph"), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 4.dp))
+            lines.forEach { Hint("· $it") }
+        }
+        Hint("Measured by the app on simulated futures, with and without it. Nothing has changed yet.")
+    }
+}
+
 /** The package's details, folded until tapped: the odds, the simulated week, what each role said. */
 @Composable
-internal fun CrewDetails(p: NavProposals.View) {
+internal fun CrewDetails(p: NavProposals.View, g: com.chronos.navigator.model.Graph?) {
     val crew = p.crew() ?: return
-    // the odds
+    // the odds, path by path, so you can see what each main path gains or pays (your request of 7 Nov 2026)
     val odds = crew.arr("odds")
     val breaches = odds.count { it.asJsonObject.get("breaks_floor")?.asBoolean == true }
+    val paths = remember(g) { g?.let { com.chronos.navigator.model.Paths.of(it) } ?: emptyList() }
+    fun pathOf(id: String?) = paths.firstOrNull { id != null && id in it.all() }
+    val byPath = odds.map { it.asJsonObject }.groupBy { pathOf(it.s("goal"))?.title() }
+    PathEffects(byPath)
     Folded("Your goals' odds", if (odds.size() == 0) tr("No deadline's odds moved.")
            else "${odds.size()} " + tr("goals moved") + if (breaches > 0) "  ·  $breaches " + tr("below their minimum") else "",
            Palette.Moss, p.id() + "odds") {
         if (odds.size() == 0) Hint("No deadline's odds moved.")
-        odds.forEach { el ->
-            val o = el.asJsonObject
+        byPath.forEach { (title, list) ->
+          Text(tr(title ?: "New on the graph"), style = MaterialTheme.typography.labelMedium, color = Palette.Indigo, modifier = Modifier.padding(top = 8.dp))
+          list.forEach { o ->
             val before = o.obj("before"); val after = o.obj("after")!!
             val breach = o.get("breaks_floor")?.asBoolean == true
             Column(Modifier.padding(vertical = 4.dp)) {
@@ -434,6 +460,7 @@ internal fun CrewDetails(p: NavProposals.View) {
                 if (breach) Text(tr("Below its floor of") + " " + pct(o.d("floor")) + " " + tr("at the low end of the band"),
                     style = MaterialTheme.typography.labelSmall, color = Palette.Brick)
             }
+          }
         }
         Hint("The middle figure is the chance of meeting the deadline; the range is the 80% band — how far that chance " +
              "could be off while the log has not pinned your speed, adherence and goal hours down. Critical and important " +

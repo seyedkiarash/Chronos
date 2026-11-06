@@ -230,6 +230,7 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
     private fun refreshWellbeing() {
         weekly = repo.weeklyLoad(config)
         restToday = repo.isRestDay(logDay)
+        lightToday = repo.lightDays()[logDay]
         val morning = checkin("morning", logDay)
         val evening = checkin("evening", logDay.minusDays(1))
         val night = logs.firstOrNull { it.id == "sleep|$logDay" }
@@ -347,6 +348,49 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
         switchRest(on)
         message = if (on) "Today is a rest day. Goal work is paused and the plan was rebuilt."
                   else "Back to the normal plan for today."
+    }
+
+    // ---------------------------------------------------------- a heavy day (7 Nov 2026)
+
+    /** The share of today kept, when you chose to run it lighter; null on a normal day. */
+    var lightToday by mutableStateOf<Int?>(null); private set
+
+    /** What the app suggests keeping of today, from how heavy you say it is and what the log shows. */
+    fun suggestLight(level: Int): com.chronos.engine.LightDay.Suggestion {
+        val day = logDay
+        val blocks = dayResult(day)?.blocks().orEmpty().filter { it.start >= 0 && it.goalId != null && !it.gap }
+        val slot = com.chronos.engine.Slots.SLOT_MIN / 60.0
+        val planned = blocks.sumOf { it.dur * slot }
+        val firm = blocks.filter { b -> config.goal(b.goalId)?.deadline?.let { !it.isAfter(day.plusDays(3)) } == true }.sumOf { it.dur * slot }
+        val morning = checkin("morning", day)
+        val nights = logs.filter { it.kind == com.chronos.model.Enums.LogKind.SLEEP && it.date != null && it.date.isBefore(day) && !it.date.isBefore(day.minusDays(21)) }
+            .mapNotNull { sleptMinutes(it) }
+        val rated = logs.filter { it.kind == com.chronos.model.Enums.LogKind.CHECKIN && it.id.startsWith("energy|") && it.energy != null }
+        val energyToday = rated.filter { it.date == day }.map { it.energy.toDouble() }.takeIf { it.isNotEmpty() }?.average()
+        val energyUsual = rated.filter { it.date != null && it.date.isBefore(day) && !it.date.isBefore(day.minusDays(21)) }
+            .map { it.energy.toDouble() }.takeIf { it.isNotEmpty() }?.average()
+        return com.chronos.engine.LightDay.suggest(level, morning?.energy,
+            logs.firstOrNull { it.id == "sleep|$day" }?.let { sleptMinutes(it) }, nights.takeIf { it.isNotEmpty() }?.average()?.toInt(),
+            energyToday, energyUsual, restVerdict?.points() ?: 0, planned, firm)
+    }
+
+    /** Runs today at this share: the plan keeps what is due first and moves the rest to the days it can. */
+    fun runLight(keepPercent: Int?) = work {
+        repo.setLightDay(logDay, keepPercent)
+        lightToday = keepPercent
+        replanToday()
+        message = if (keepPercent == null) "Today is back to the full plan." else "Today runs lighter; what is due stays first."
+    }
+
+    private fun replanToday() {
+        dayCache.clear(); requested.clear()
+        if (Readiness.canSolve(issues)) {
+            bundle = repo.rebuild(config)
+            coverage = repo.coverage(config, bundle)
+            upcoming = repo.dayProblems(config, bundle, UPCOMING_DAYS)
+            syncCalendarIfConfigured()
+        }
+        revision++
     }
 
     private fun switchRest(on: Boolean) {

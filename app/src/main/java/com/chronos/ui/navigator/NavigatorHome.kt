@@ -87,10 +87,12 @@ internal fun NavigatorHome(nav: NavigatorViewModel) {
         return
     }
     // The day's conversation first: what you would open every evening (3 Nov 2026).
-    LinkRow("Today's conversation", "How the day went, how you feel, what is on your mind — a few minutes, kept on this phone") {
-        nav.page = NavPage.TODAY }
+    Panel("Today's conversation", Palette.Teal) {
+        LinkRow("How did today go?", "How you feel, what is on your mind — a few minutes, kept on this phone") { nav.page = NavPage.TODAY }
+    }
     CrewPanel(nav, compact = true)
     val c = counts(nav)
+    Panel("At a glance", Palette.Ochre) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         StatusCard(Modifier.weight(1f), "Inbox", c.pending.toString(),
             if (c.pending == 0) tr("nothing waiting") else
@@ -110,13 +112,18 @@ internal fun NavigatorHome(nav: NavigatorViewModel) {
             if (c.needs == 0) tr("nothing open") else tr("open items"),
             if (c.needs > 0) Palette.Brick else Palette.Muted) { nav.page = NavPage.NEEDS }
     }
-    Spacer(Modifier.height(8.dp))
+    }
     // The map of the graph sits on the home, under the cards (your choice of 25 Oct 2026).
     nav.graph?.let { NetworkPanel(nav, it) }
+    Panel("More", Palette.Muted) {
+    LinkRow("Is it too much?", "Every deadline, near and far, against your hours; what could give way, for you to decide") {
+        nav.checkDensity() }
+    if (nav.checkingDensity) LinearProgressIndicator(Modifier.fillMaxWidth())
     LinkRow("What my log suggests", "Allowed hours, days, session lengths and sleep, each with its reason; to approve or not") {
         nav.habitsNow(); nav.page = NavPage.INBOX }
     LinkRow("Learning", "What your log has taught") { nav.page = NavPage.LEARNING }
     LinkRow("Settings", "Goal graph, LLM and crew, automatic checks, parameters") { nav.page = NavPage.SETTINGS }
+    }
 }
 
 @Composable

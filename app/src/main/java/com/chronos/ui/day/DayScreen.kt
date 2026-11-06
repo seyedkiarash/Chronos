@@ -50,6 +50,7 @@ fun DayScreen(vm: ChronosViewModel) {
 
     if (date == vm.logDay && vm.restToday)
         Verdict(Tone.Good, "Rest day", "Goal work is paused; only upkeep and rest activities are planned.")
+    if (date == vm.logDay && !vm.restToday && result != null) HeavyDayPanel(vm)
 
     if (result == null) {
         Panel { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
@@ -168,5 +169,45 @@ private fun LegendDot(label: String, color: androidx.compose.ui.graphics.Color) 
         Spacer(Modifier.width(5.dp))
         Text(label, style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/**
+ * A day that turned heavy (your idea of 7 Nov 2026): you say how heavy, the app suggests how much to
+ * keep from that and what the log shows, you choose. What is due stays first; the rest moves on.
+ */
+@Composable
+private fun HeavyDayPanel(vm: ChronosViewModel) {
+    val kept = vm.lightToday
+    if (kept != null) {
+        Verdict(Tone.Warn, tr("Today runs at {}%").replace("{}", kept.toString()),
+            tr("What is due stays first; the rest moved to the days it could."))
+        TextButton(onClick = { vm.runLight(null) }, enabled = !vm.busy) { Text("Back to the full plan") }
+        return
+    }
+    var level by remember { mutableStateOf<Int?>(null) }
+    Panel("Is today heavy?", Palette.Ochre) {
+        Hint("Say how heavy it is. The app suggests how much of today to keep, from that and from what your log shows; you choose.")
+        Row(Modifier.padding(top = 6.dp)) {
+            listOf(com.chronos.engine.LightDay.A_LITTLE to "A little", com.chronos.engine.LightDay.HEAVY to "Heavy",
+                com.chronos.engine.LightDay.VERY to "Very heavy").forEach { (l, name) ->
+                Box(Modifier.padding(end = 6.dp)) { Pill(tr(name), level == l) { level = if (level == l) null else l } }
+            }
+        }
+        level?.let { l ->
+            val s = remember(l, vm.revision) { vm.suggestLight(l) }
+            var keep by remember(l, vm.revision) { mutableIntStateOf(s.keepPercent()) }
+            Text(tr("Suggested: keep about {}% of today").replace("{}", s.keepPercent().toString()),
+                style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
+            s.reasons().forEach { Hint("· " + tr(it)) }
+            if (s.firmPercent() > 0) Hint(tr("What is due in the next three days takes {}% of today.").replace("{}", s.firmPercent().toString()))
+            Row(Modifier.padding(top = 6.dp)) {
+                listOf(20, 40, 60, 80).forEach { p ->
+                    Box(Modifier.padding(end = 6.dp)) { Pill("$p%", keep == p) { keep = p } }
+                }
+            }
+            if (keep !in listOf(20, 40, 60, 80)) Hint(tr("Chosen") + ": $keep%")
+            Button(onClick = { vm.runLight(keep) }, enabled = !vm.busy, modifier = Modifier.padding(top = 6.dp)) { Text("Run today like this") }
+        }
     }
 }

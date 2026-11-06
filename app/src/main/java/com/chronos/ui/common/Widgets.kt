@@ -19,6 +19,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
@@ -35,6 +37,9 @@ import java.time.LocalDate
 
 /* Small pieces shared by every screen. Nothing here knows about the model. */
 
+/** Inside the Navigator, panels are sections with a coloured header (7 Nov 2026). */
+val LocalSectionHeaders = staticCompositionLocalOf { false }
+
 /**
  * A card. With an [accent] it gets a coloured left rule, a tinted surface and a
  * coloured title — how the Setup wizard tells its sections apart at a glance.
@@ -43,6 +48,23 @@ import java.time.LocalDate
 fun Panel(title: String? = null, accent: Color? = null,
           content: @Composable ColumnScope.() -> Unit) {
     val surface = MaterialTheme.colorScheme.surface
+    if (LocalSectionHeaders.current) {
+        // A section: a coloured header over a plain body, so sections are told apart at a glance.
+        val light = surface.luminance() > 0.5f
+        val body = if (light) Color.White else surface
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+            colors = CardDefaults.cardColors(containerColor = body),
+            border = BorderStroke(1.dp, (accent ?: MaterialTheme.colorScheme.outline).copy(alpha = 0.6f)),
+            shape = RoundedCornerShape(10.dp)
+        ) {
+            if (title != null) Box(Modifier.fillMaxWidth().background(accent ?: Palette.Muted).padding(horizontal = 14.dp, vertical = 8.dp)) {
+                Text(title, style = MaterialTheme.typography.titleSmall, color = Palette.OnFill, fontWeight = FontWeight.Medium)
+            }
+            Column(Modifier.fillMaxWidth().padding(14.dp)) { content() }
+        }
+        return
+    }
     val container = if (accent == null) surface else accent.copy(alpha = 0.07f).compositeOver(surface)
     val border = accent?.copy(alpha = 0.5f) ?: MaterialTheme.colorScheme.outline
     Card(

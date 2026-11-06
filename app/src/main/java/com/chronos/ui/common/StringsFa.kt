@@ -3690,4 +3690,86 @@ internal val Fa: Map<String, String> = mapOf(
         to "اجازهٔ اعلان",
     "Everything else"
         to "بقیهٔ موارد",
+    "Today runs at {}%"
+        to "امروز با {}٪ برنامه می‌رود",
+    "What is due stays first; the rest moved to the days it could."
+        to "کارهای مهلت‌دار اول می‌مانند؛ بقیه به روزهایی رفتند که جا داشت.",
+    "Back to the full plan"
+        to "برگرد به برنامهٔ کامل",
+    "Is today heavy?"
+        to "امروز روز سنگینی است؟",
+    "Say how heavy it is. The app suggests how much of today to keep, from that and from what your log shows; you choose."
+        to "بگو چقدر سنگین است. برنامه از روی آن و لاگت پیشنهاد می‌دهد چقدر از امروز بماند؛ انتخاب با توست.",
+    "A little"
+        to "کمی",
+    "Heavy"
+        to "سنگین",
+    "Very heavy"
+        to "خیلی سنگین",
+    "Suggested: keep about {}% of today"
+        to "پیشنهاد: حدود {}٪ از امروز بماند",
+    "What is due in the next three days takes {}% of today."
+        to "کارهای مهلت‌دار سه روز آینده {}٪ از امروز را می‌گیرند.",
+    "Chosen"
+        to "انتخاب‌شده",
+    "Run today like this"
+        to "امروز همین‌طور برود",
+    "Today is back to the full plan."
+        to "امروز به برنامهٔ کامل برگشت.",
+    "Today runs lighter; what is due stays first."
+        to "امروز سبک‌تر می‌رود؛ کارهای مهلت‌دار اول می‌مانند.",
+    "Last night was shorter than usual."
+        to "خواب دیشب از معمول کوتاه‌تر بود.",
+    "Your energy was low this morning."
+        to "امروز صبح انرژی‌ات پایین بود.",
+    "Your hours today are rated below your usual."
+        to "امتیاز ساعت‌های امروزت از معمول پایین‌تر است.",
+    "The last days already make a case for rest."
+        to "روزهای اخیر هم نشانهٔ نیاز به استراحت دارند.",
+    "What is due in the next days needs this much."
+        to "کارهای مهلت‌دار روزهای آینده همین‌قدر وقت می‌خواهند.",
+    "Even so, this leaves less than what is due in the next days needs."
+        to "با این حال، این کمتر از وقتی است که کارهای مهلت‌دار روزهای آینده می‌خواهند.",
+    "Too much for the time you have? The Navigator can weigh every deadline and propose what could give way."
+        to "کارها از وقتت بیشتر است؟ ناوبری همهٔ ددلاین‌ها را می‌سنجد و پیشنهاد می‌دهد چه چیزی می‌تواند کنار برود.",
+    "What could give way"
+        to "چه چیزی می‌تواند کنار برود",
+    "Is it too much?"
+        to "کارها زیاد نیست؟",
+    "Every deadline, near and far, against your hours; what could give way, for you to decide"
+        to "همهٔ ددلاین‌ها، نزدیک و دور، در برابر ساعت‌هایت؛ و آنچه می‌تواند کنار برود، به تصمیم تو",
+    "Everything fits the hours you have, as far as the log can tell."
+        to "تا جایی که لاگ نشان می‌دهد، همه‌چیز در ساعت‌هایت جا می‌شود.",
+    "The check could not finish."
+        to "بررسی تمام نشد.",
+    "More than the time holds"
+        to "بیشتر از وقتی که هست",
+    "At a glance"
+        to "در یک نگاه",
+    "More"
+        to "بیشتر",
+    "How did today go?"
+        to "امروز چطور گذشت؟",
+    "How you feel, what is on your mind — a few minutes, kept on this phone"
+        to "چه حسی داری، چه چیزی توی ذهنت است — چند دقیقه، فقط روی همین گوشی",
+    "The Navigator is working on your message"
+        to "ناوبری روی پیامت کار می‌کند",
+    "Earlier conversations"
+        to "گفتگوهای قبلی",
+    "It stays here until you decide. The Navigator works out what it would change, and you see the effect on every path before anything is applied."
+        to "تا تصمیم بگیری اینجا می‌ماند. ناوبری حساب می‌کند چه چیزی را عوض می‌کند و قبل از هر تغییری اثرش را روی همهٔ مسیرها می‌بینی.",
+    "The Navigator is working out what it would change…"
+        to "ناوبری دارد حساب می‌کند چه چیزی را عوض می‌کند…",
+    "See what it would change"
+        to "ببین چه چیزی را عوض می‌کند",
+    "The Navigator answered"
+        to "ناوبری پاسخ داد",
+    "What it does to your paths"
+        to "اثرش روی مسیرهایت",
+    "New on the graph"
+        to "تازه روی گراف",
+    "Measured by the app on simulated futures, with and without it. Nothing has changed yet."
+        to "برنامه این را روی آینده‌های شبیه‌سازی‌شده، با و بدون آن، سنجیده. هنوز چیزی تغییر نکرده.",
+    "The providers cannot be reached from this network. Turn on a VPN, then send it again."
+        to "از این شبکه به سرویس‌ها دسترسی نیست. VPN را روشن کن و دوباره بفرست.",
 )

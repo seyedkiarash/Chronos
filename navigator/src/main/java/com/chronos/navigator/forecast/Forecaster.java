@@ -107,11 +107,14 @@ public final class Forecaster {
     /** One run's state, reused across runs. */
     static final class Sim {
         static final double NEVER = 1e9;
+        static final int STRESS = com.chronos.navigator.model.Kinds.DayType.STRESS.ordinal();
         final Model m;
         final double[] done, hours, need, streamHours;
         final boolean[] failed, on;
         final double[] alloc;
         double[] capMu = new double[3];
+        /** The share of this step's days that are stress days: only what has a firm date goes on then. */
+        double stressShare;
         /** First day offset of the week a given allocation covers. */
         int weekFrom;
         /** This run's adherence per node: planned hours needed for the work left are the work left ÷ it. */
@@ -198,19 +201,24 @@ public final class Forecaster {
         /** Goal hours of the step: each day's type from its regime's mix, each type's hours from its distribution. */
         double capacity(int day, int len, SplittableRandom rnd) {
             int reg = m.regimeOfDay[Math.min(day, m.horizonDays - 1)];
+            stressShare = 0;
             if (reg < 0) return 0;
             double[] w = mix[reg];
             if (w == null) w = mix[reg] = Rand.dirichlet(rnd, m.dayTypeAlpha.get(reg));
             if (len == 1) {
                 int t = Rand.categorical(rnd, w);
+                stressShare = t == STRESS ? 1 : 0;
                 return Math.max(0, capMu[t] + m.capSigma[t] * rnd.nextGaussian());
             }
             double mean = 0, var = 0;
+            int stress = 0;
             for (int d = 0; d < len; d++) {
                 int t = Rand.categorical(rnd, w);
+                if (t == STRESS) stress++;
                 mean += capMu[t];
                 var += m.capSigma[t] * m.capSigma[t];
             }
+            stressShare = stress / (double) len;
             return Math.max(0, mean + Math.sqrt(var) * rnd.nextGaussian());
         }
 
@@ -293,6 +301,8 @@ public final class Forecaster {
                 // Standing hours that must hold (the courses) come back after a day that had no room for them.
                 if (m.stream[i] && m.nodes[i].hard)
                     want += Math.max(0, m.floorOn(i, day) * day - streamHours[i]) / 7 * len;
+                // On a heavy day what has a firm date gets the time it can, and work with room to wait waits (your answer of 7 Nov 2026).
+                if (!firm(i)) want *= 1 - stressShare;
                 want = Math.min(want, m.capPerDay[i] * len);
                 if (!m.stream[i]) want = Math.min(want, left(i));
                 alloc[i] = Math.max(0, want);

@@ -74,6 +74,7 @@ internal fun triggerLabel(trigger: String?, task: String?): String = when (trigg
     "you" -> "You told the Navigator"
     "weekly_review" -> "Weekly review of the levers"
     "your_log" -> "Read from your log"
+    "too_dense" -> "More than the time holds"
     else -> when (task) {
         "EXPAND_NODE" -> "Breakdown you asked for"
         "REPLAN_SUGGEST" -> "Ways to recover you asked for"

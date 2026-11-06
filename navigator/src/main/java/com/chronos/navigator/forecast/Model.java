@@ -293,6 +293,9 @@ final class Model {
         return s.startsWith("done") || s.startsWith("reached");
     }
 
+    /** A date as a day offset from today. */
+    int dayOffset(LocalDate d) { return offset(d); }
+
     private int offset(LocalDate d) {
         return d == null ? NONE : (int) ChronoUnit.DAYS.between(today, d);
     }

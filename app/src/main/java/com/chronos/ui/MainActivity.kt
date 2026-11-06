@@ -18,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -142,6 +143,7 @@ fun ChronosApp(vm: ChronosViewModel = viewModel(), nav: NavigatorViewModel = vie
         when (vm.openTab) {
             "log" -> tab = Tab.Log; "setup" -> tab = Tab.Setup; "priorities" -> tab = Tab.Priorities
             "today" -> { tab = Tab.Navigator; nav.page = NavPage.TODAY; nav.openProposal = null }
+            "density" -> { tab = Tab.Navigator; nav.page = NavPage.INBOX; nav.openProposal = null; nav.checkDensity() }
         }
         vm.openTab = null
     }
@@ -192,7 +194,11 @@ fun ChronosApp(vm: ChronosViewModel = viewModel(), nav: NavigatorViewModel = vie
             }
         }
     ) {
+    // The Navigator on a plain white page, its sections told apart by coloured headers (your request of 7 Nov 2026).
+    val onNavigator = tab == Tab.Navigator
+    val page = MaterialTheme.colorScheme.background.let { b -> if (onNavigator && b.luminance() > 0.5f) androidx.compose.ui.graphics.Color.White else b }
     Scaffold(
+        containerColor = page,
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             Surface(tonalElevation = 2.dp) {
@@ -236,7 +242,7 @@ fun ChronosApp(vm: ChronosViewModel = viewModel(), nav: NavigatorViewModel = vie
                 Tab.Priorities -> WeightsScreen(vm)
                 Tab.Setup -> SetupScreen(vm) { tab = Tab.Priorities }
                 Tab.Log -> LogScreen(vm)
-                Tab.Navigator -> NavigatorScreen(nav)
+                Tab.Navigator -> CompositionLocalProvider(LocalSectionHeaders provides true) { NavigatorScreen(nav) }
             }
             Spacer(Modifier.height(32.dp))
         }

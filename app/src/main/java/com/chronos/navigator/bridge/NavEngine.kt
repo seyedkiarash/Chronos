@@ -101,6 +101,10 @@ object NavEngine {
         val out = run(context, due)
         if (out.ran && LlmSettings(context).autoTriggers)
             runCatching { triggers(context) }.onFailure { android.util.Log.w("Navigator", "triggers failed", it) }
+        // More work than time: asked about at most once a week (7 Nov 2026).
+        if (out.ran && !com.chronos.navigator.llm.client.CrewRun.densityWithin(context, 6))
+            runCatching { com.chronos.navigator.llm.client.CrewRun.density(context, "nightly") }
+                .onFailure { android.util.Log.w("Navigator", "density check failed", it) }
         // The crew's weekly review of the levers, on the same night as the week's allocation.
         if (out.ran && LlmSettings(context).autoTriggers && weekdayIndex(today) == day &&
             com.chronos.navigator.llm.client.CrewSettings(context).let { it.ready || it.relay } &&

@@ -95,6 +95,12 @@ fun HorizonScreen(vm: ChronosViewModel) {
         TextButton(onClick = { vm.openTab = "priorities" }) { Text(tr("Check them") + " ›") }
     }
 
+    // Deadlines not on track: what could give way is a choice, offered knowingly (7 Nov 2026).
+    if (bundle != null) Column(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+        Hint("Too much for the time you have? The Navigator can weigh every deadline and propose what could give way.")
+        TextButton(onClick = { vm.openTab = "density" }) { Text(tr("What could give way") + " ›") }
+    }
+
     // ---- the four tiles (your choice of 24 Oct 2026); each takes you to its picture
     val scope = rememberCoroutineScope()
     val toMonth = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }

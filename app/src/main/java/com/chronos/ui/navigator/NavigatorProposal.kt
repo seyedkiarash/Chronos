@@ -274,7 +274,7 @@ internal fun ProposalPage(nav: NavigatorViewModel, id: String) {
             Hint("This version is no longer waiting: the model can still explain it, but not revise it.")
     }
 
-    if (p.fromCrew()) CrewDetails(p)
+    if (p.fromCrew()) CrewDetails(p, nav.graph)
 
     // ---- decide
     if (!p.fromCrew() && p.status() == "PENDING") Panel {
