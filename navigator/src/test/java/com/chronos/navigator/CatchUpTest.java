@@ -32,7 +32,6 @@ public class CatchUpTest {
     @Test
     public void workLeftBehindComesBackBeforeTheDeadline() {
         // The deadline (12 Oct) inside a 14-day plan: a run behind schedule gets the missing hours later.
-        // The deadline (12 Oct) inside a 14-day plan: a run behind schedule gets the missing hours later.
         double inside = courseOdds(3.0, 14);
         // The same hours a day, but the plan ends three days in: nothing to catch up against.
         double outside = courseOdds(3.0, 3);

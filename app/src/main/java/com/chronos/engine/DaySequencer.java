@@ -901,10 +901,13 @@ public final class DaySequencer {
     static final double BREAK_TOLERANCE = 0.45;
 
     private List<Activity> leisureToday() {
+        // A rest that takes you out of the house only on a day you are going out anyway (6 Nov 2026):
+        // a walk outside was being planned on days with no outing at all.
+        boolean goingOut = FixedFrame.goingOut(cfg, dow);
         List<Activity> out = new ArrayList<>();
         for (Activity a : cfg.activities)
             if (a.leisure && a.kind == ActivityKind.MAINTENANCE && a.days.contains(dow) && !a.nap
-                    && a.minBlock != null && a.maxBlock != null) out.add(a);
+                    && (!a.away || goingOut) && a.minBlock != null && a.maxBlock != null) out.add(a);
         return out;
     }
 

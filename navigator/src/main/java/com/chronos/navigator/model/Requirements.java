@@ -74,6 +74,7 @@ public final class Requirements {
                             name + " has no effort estimate (hours at the median and at the 90th percentile)"));
                 }
                 case SKILL -> {
+                    if (n.expanded) break;                 // its parts carry the hours (6 Nov 2026)
                     if (n.levelFrom == null || n.levelTo == null)
                         out.add(new Issue(Severity.BLOCKING, Fix.NODE_EFFORT, n.id,
                             name + " has no current or target level"));

@@ -344,6 +344,12 @@ class NavigatorViewModel(private val app: Application) : AndroidViewModel(app) {
 
     private fun load() {
         val cfg = repo.loadConfig()
+        // A proposal you approved or a graph you imported may have given something its place.
+        if (com.chronos.navigator.bridge.Placement.reconcile(app, cfg)) {
+            repo.saveConfig(cfg)
+            com.chronos.auto.AutoPlanner.onClosedInBackground?.invoke()
+        }
+        waiting = com.chronos.navigator.bridge.Placement.waiting(app)
         activities = cfg.activities.filter { it.kind == ActivityKind.GOAL && !it.name.isNullOrBlank() }
             .map { it.name.trim() }
         graph = store.load()
@@ -438,6 +444,65 @@ class NavigatorViewModel(private val app: Application) : AndroidViewModel(app) {
             } catch (e: Exception) { message = e.message } finally { testing = false }
         }
     }
+
+    // ---------------------------------------------------------- other paths (6 Nov 2026)
+
+    var pathIdeas by mutableStateOf(com.chronos.navigator.llm.client.PathIdeas.read(app)); private set
+    var findingIdeas by mutableStateOf(false); private set
+
+    fun findIdeas() {
+        if (findingIdeas) return
+        findingIdeas = true
+        viewModelScope.launch {
+            try {
+                pathIdeas = withContext(Dispatchers.IO) { com.chronos.navigator.llm.client.PathIdeas.find(app) }
+            } catch (e: Exception) {
+                message = e.message ?: "No model answered."
+            } finally { findingIdeas = false }
+        }
+    }
+
+    fun dropIdea(i: com.chronos.navigator.llm.client.PathIdeas.Idea) =
+        viewModelScope.launch(Dispatchers.IO) { pathIdeas = com.chronos.navigator.llm.client.PathIdeas.drop(app, i.id) }
+
+    /** An idea you want looked at: it goes to the Navigator as your message, and comes back as a package to approve. */
+    fun takeIdea(i: com.chronos.navigator.llm.client.PathIdeas.Idea) {
+        tell(com.chronos.navigator.llm.client.PathIdeas.message(app, i))
+        dropIdea(i)
+        page = NavPage.CHAT
+    }
+
+    // ---------------------------------------------------- a place on the graph (6 Nov 2026)
+
+    /** Goal work in Chronos that has no place on the graph yet, and so is not planned. */
+    var waiting by mutableStateOf<List<com.chronos.navigator.bridge.Placement.Waiting>>(emptyList()); private set
+    var placementOn by mutableStateOf(com.chronos.navigator.bridge.Placement.on(app)); private set
+
+    fun place(w: com.chronos.navigator.bridge.Placement.Waiting, nodeId: String) = work {
+        com.chronos.navigator.bridge.Placement.place(app, w, nodeId)
+        load()
+    }
+
+    fun askAboutPlace(w: com.chronos.navigator.bridge.Placement.Waiting) {
+        val fa = com.chronos.auto.AutoPlanner.prefs(app).getString("lang", null) == "fa"
+        tell(com.chronos.navigator.bridge.Placement.question(w, fa))
+        page = NavPage.CHAT
+    }
+
+    fun setPlacement(on: Boolean) = work {
+        com.chronos.navigator.bridge.Placement.setOn(app, on)
+        placementOn = on
+        load()
+    }
+
+    // ---------------------------------------------------- the evening's reminder (6 Nov 2026)
+
+    var talkOn by mutableStateOf(com.chronos.auto.TalkReminder.on(app)); private set
+    var talkTime by mutableStateOf(com.chronos.auto.TalkReminder.time(app)); private set
+    val notificationsAllowed get() = com.chronos.auto.Reminders.allowed(app)
+
+    fun changeTalkOn(on: Boolean) { com.chronos.auto.TalkReminder.setOn(app, on); talkOn = on }
+    fun changeTalkTime(t: String) { talkTime = t; com.chronos.auto.TalkReminder.setTime(app, t) }
 
     fun setQuick(on: Boolean) { com.chronos.navigator.llm.client.Quick.setOn(app, on); quickOn = on }
 

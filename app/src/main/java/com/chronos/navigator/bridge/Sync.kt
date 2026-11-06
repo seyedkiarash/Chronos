@@ -28,7 +28,7 @@ import kotlin.math.exp
  */
 object Sync {
 
-    enum class Kind { DEADLINE, UNITS, HOURS_PER_UNIT, FINISHED_IN_CHRONOS, FINISHED_IN_GRAPH }
+    enum class Kind { DEADLINE, UNITS, HOURS_PER_UNIT, FINISHED_IN_CHRONOS, FINISHED_IN_GRAPH, WEEKLY_HOURS }
 
     /**
      * One disagreement.
@@ -83,7 +83,8 @@ object Sync {
                 val act = cfg.activities.firstOrNull { it.goalId == goal.id && it.name != null }?.name?.let { Requirements.norm(it) }
                 val bias = act?.let { g.params[Estimator.POST + "bias." + it] }
                 val hpu = goal.hoursPerUnit
-                if (bias != null && hpu != null && hpu > 0 && (bias.get("n") ?: 0.0) >= 3) {
+                // Finished work has no more hours to plan: its speed is not worth a question.
+                if (!done(n) && goal.remainingUnits() > 1e-9 && bias != null && hpu != null && hpu > 0 && (bias.get("n") ?: 0.0) >= 3) {
                     val learned = Math.round(hpu * (bias.get("median") ?: 1.0) * 20) / 20.0
                     if (abs(learned - hpu) / hpu > 0.15) {
                         val week = bias.get("slope")?.let { (exp(it * 7) - 1) * 100 }
@@ -100,6 +101,23 @@ object Sync {
                     out += Diff(Kind.FINISHED_IN_GRAPH, n.id, title, goal.id, name, "finished",
                         num(goal.doneUnits ?: 0.0) + " / " + num(goal.totalUnits), toChronos = true, toGraph = false, note = null)
             }
+        }
+        // Standing hours (6 Nov 2026): an open goal's weekly hours follow the node worked through it, and a
+        // node with a stretch of its own (a month of a language plan) speaks only during that stretch.
+        val today = com.chronos.data.ChronosRepository.logicalToday()
+        for ((nodeId, acts) in Bridge.nodeActivities(g, cfg, store.links())) {
+            val n = g.node(nodeId) ?: continue
+            val floor = n.weeklyFloorH ?: continue
+            if (done(n) || n.expanded || n.earliest?.isAfter(today) == true || n.deadline?.isBefore(today) == true) continue
+            val open = cfg.activities.filter { !it.archived && it.name != null && it.goalId != null && Requirements.norm(it.name) in acts }
+                .mapNotNull { cfg.goal(it.goalId) }.filter { it.mode == Enums.GoalMode.OPEN }.distinctBy { it.id }
+            // Several goals under one node (theory and coding) share its hours as you divided them.
+            val goal = open.singleOrNull() ?: continue
+            val cap = n.maxHPerDay
+            if (abs((goal.weeklyFloorH ?: 0.0) - floor) < 0.01 && (cap == null || abs((goal.maxPerDayH ?: 0.0) - cap) < 0.01)) continue
+            fun words(week: Double?, day: Double?) = num(week ?: 0.0) + " h/week" + (day?.let { ", " + num(it) + " h/day" } ?: "")
+            out += Diff(Kind.WEEKLY_HOURS, n.id, n.title ?: n.id, goal.id, goal.name?.trim() ?: "", words(floor, cap),
+                words(goal.weeklyFloorH, goal.maxPerDayH), toChronos = true, toGraph = false, note = null)
         }
         // A difference you chose to keep is not shown again — until either side changes.
         return out.filter { d -> ignored[d.id]?.let { it.note != d.graph + "|" + d.chronos } ?: true }
@@ -123,6 +141,10 @@ object Sync {
                 Kind.HOURS_PER_UNIT -> goal.hoursPerUnit = d.graph.toDouble()
                 Kind.FINISHED_IN_GRAPH -> goal.doneUnits = goal.totalUnits
                 Kind.FINISHED_IN_CHRONOS -> return "Nothing to write into Chronos."
+                Kind.WEEKLY_HOURS -> {
+                    goal.weeklyFloorH = n.weeklyFloorH
+                    n.maxHPerDay?.let { goal.maxPerDayH = it }
+                }
             }
             repo.saveConfig(cfg)
             NavEngine.afterChronosChange(context, cfg)

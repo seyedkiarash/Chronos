@@ -56,6 +56,7 @@ private fun SyncRow(nav: NavigatorViewModel, d: Sync.Diff) {
             Sync.Kind.HOURS_PER_UNIT -> "Hours per unit: the log disagrees with Chronos"
             Sync.Kind.FINISHED_IN_CHRONOS -> "Finished in Chronos, open in the graph"
             Sync.Kind.FINISHED_IN_GRAPH -> "Done in the graph, units left in Chronos"
+            Sync.Kind.WEEKLY_HOURS -> "Weekly hours: Chronos differs from the graph"
         }), style = MaterialTheme.typography.labelMedium, color = Palette.Ochre)
         Text(d.nodeTitle + "  ⇄  " + d.goalName, style = MaterialTheme.typography.bodySmall)
         Hint(tr(if (d.kind == Sync.Kind.HOURS_PER_UNIT) "Learned from your log" else "Graph") + ": " + show(d.graph) +

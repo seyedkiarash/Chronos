@@ -45,7 +45,7 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
 
     companion object {
         /** Raised when the way days are arranged changes, so stored plans are solved again. */
-        private const val ENGINE_VERSION = 10
+        private const val ENGINE_VERSION = 11
         /** How far ahead the Horizon screen looks for things that did not fit. */
         private const val UPCOMING_DAYS = 7
     }
@@ -523,6 +523,11 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
         dayCache.clear()
         requested.clear()
         work {
+            // Goal work without a place on the graph waits for one (6 Nov 2026).
+            val held = config.activities.count { it.pauseUntil == com.chronos.navigator.bridge.Placement.HOLD }
+            com.chronos.navigator.bridge.Placement.reconcile(app, config)
+            if (config.activities.count { it.pauseUntil == com.chronos.navigator.bridge.Placement.HOLD } > held)
+                message = "It waits for its place on the goal graph: see Navigator, Needs your answer."
             repo.saveConfig(config)
             issues = repo.readiness(config)
             feasibility = repo.feasibility(config)

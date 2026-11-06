@@ -42,6 +42,7 @@ import com.chronos.navigator.model.Graph
 import com.chronos.navigator.model.Kinds.EdgeKind
 import com.chronos.navigator.model.Kinds.NodeType
 import com.chronos.navigator.model.Node
+import com.chronos.navigator.model.Paths
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlin.math.max
@@ -93,6 +94,9 @@ private fun columnOf(d: LocalDate?, today: LocalDate): Column {
 /** A node's place on the map at the normal zoom, in pixels. */
 private data class Spot(val node: Node, val x: Float, val y: Float, val col: Int, val p: Double?, val likely: LocalDate?)
 
+/** The nodes one path holds, or all of them; streams are listed apart from the map either way. */
+private fun onPath(g: Graph, path: Paths.Main?) = path?.all() ?: g.nodes.keys
+
 private data class Layout(val spots: List<Spot>, val columns: List<Column>, val laneTops: List<Float>, val laneNames: List<String>,
                           val width: Float, val height: Float, val colW: Float, val left: Float)
 
@@ -108,14 +112,19 @@ internal fun NetworkPanel(nav: NavigatorViewModel, g: Graph) {
     var offset by remember { mutableStateOf(Offset.Zero) }
     val density = LocalDensity.current
     val measurer = rememberTextMeasurer()
+    // The main paths, one at a time, so a crowded graph can still be read (6 Nov 2026).
+    val paths = remember(g) { Paths.of(g) }
+    var pathId by remember { mutableStateOf<String?>(null) }
+    val path = paths.firstOrNull { it.id == pathId }
+    val shown = remember(g, pathId) { onPath(g, path) }
 
     // Ongoing streams have no finishing date: they are listed above the map, not placed on it.
-    val streams = remember(g) { g.nodes.values.filter { it.plannable() && it.type == NodeType.STREAM && !done(it) } }
+    val streams = remember(g, pathId) { g.nodes.values.filter { it.plannable() && it.type == NodeType.STREAM && !done(it) && it.id in shown } }
 
-    val layout = remember(g, f, density) {
+    val layout = remember(g, f, density, pathId) {
         with(density) {
             val colW = 104.dp.toPx(); val rowH = 40.dp.toPx(); val head = 26.dp.toPx(); val left = 26.dp.toPx()
-            val nodes = g.nodes.values.filter { it.plannable() && it.type != NodeType.STREAM }.map { n ->
+            val nodes = g.nodes.values.filter { it.plannable() && it.type != NodeType.STREAM && it.id in shown }.map { n ->
                 val r = f?.nodes()?.get(n.id)
                 val likely = r?.p50?.let { LocalDate.parse(it) }
                 val date = if (done(n)) today else likely ?: n.deadline ?: n.decideBy ?: n.expandAt
@@ -164,6 +173,14 @@ internal fun NetworkPanel(nav: NavigatorViewModel, g: Graph) {
         Hint("Columns are stretches of time — months while they are near, then quarters, then years — and rows are " +
              "the phases. Each node sits where it will likely finish; colour is its chance of meeting its deadline. " +
              "Tap a node: the chain that decides its date turns red. Drag sideways to move, pinch to zoom.")
+        Text(tr("Show"), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 4.dp))
+        FlowRowSimple {
+            Box(Modifier.padding(end = 6.dp, bottom = 4.dp)) { Pill(tr("All paths"), pathId == null) { pathId = null; selected = null } }
+            paths.forEach { p ->
+                Box(Modifier.padding(end = 6.dp, bottom = 4.dp)) { Pill(tr(p.title() ?: p.id()), pathId == p.id()) {
+                    pathId = p.id(); selected = null; offset = Offset.Zero } }
+            }
+        }
         if (streams.isNotEmpty()) {
             Text(tr("Ongoing"), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 4.dp))
             FlowRowSimple {
@@ -182,6 +199,8 @@ internal fun NetworkPanel(nav: NavigatorViewModel, g: Graph) {
         val labelColor = MaterialTheme.colorScheme.onSurface
         val muted = MaterialTheme.colorScheme.onSurfaceVariant
         val faint = MaterialTheme.colorScheme.outlineVariant
+        // The lines between nodes: strong enough on the dark theme too, where the outline colour all but vanished.
+        val edgeColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
         val laneColor = MaterialTheme.colorScheme.surfaceVariant
         val mapHeight = with(density) { layout.height.toDp() }
         val lang = LocalLang.current
@@ -242,7 +261,7 @@ internal fun NetworkPanel(nav: NavigatorViewModel, g: Graph) {
                         val pa = at(a.x, a.y); val pb = at(b.x, b.y)
                         val onChain = (a.node.id to b.node.id) in chain
                         val touches = selected != null && (a.node.id == selected || b.node.id == selected)
-                        val color = when { onChain -> Palette.Brick; touches -> labelColor.copy(alpha = 0.6f); else -> faint }
+                        val color = when { onChain -> Palette.Brick; touches -> labelColor.copy(alpha = 0.85f); else -> edgeColor }
                         val path = Path().apply {
                             moveTo(pa.x, pa.y)
                             val mx = (pa.x + pb.x) / 2
@@ -290,6 +309,8 @@ internal fun NetworkPanel(nav: NavigatorViewModel, g: Graph) {
         Legend()
         selected?.let { id -> g.node(id)?.let { PathTree(nav, g, it) { selected = it } } }
             ?: Hint("Tap a node to see what leads to it.")
+        path?.let { PathCard(nav, g, it) { selected = it } }
+        IdeasPanel(nav)
     }
 }
 
@@ -316,6 +337,59 @@ private fun Legend() {
             }
     }
     Hint("Dashed red tail: from the deadline (◇) to a likely finish after it. Dashed line: one of several ways in, or only helps.")
+}
+
+// ------------------------------------------------------- one main path
+
+/** A path read in order: its goal, the line every way passes through, then each way in with how likely it is. */
+@Composable
+private fun PathCard(nav: NavigatorViewModel, g: Graph, path: Paths.Main, pick: (String) -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(top = 10.dp)
+        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(8.dp)).padding(10.dp)) {
+        Text(tr(path.title() ?: path.id()), style = MaterialTheme.typography.titleSmall)
+        path.why()?.let { Hint(tr(it)) }
+        path.goal()?.let { id -> g.node(id)?.let { n ->
+            Text(tr("Where it leads"), style = MaterialTheme.typography.labelSmall, color = Palette.Indigo, modifier = Modifier.padding(top = 6.dp))
+            TreeRow(nav, n, 0, null, pick)
+        } }
+        if (path.stem().isNotEmpty()) {
+            Text(tr("The main line"), style = MaterialTheme.typography.labelSmall, color = Palette.Indigo, modifier = Modifier.padding(top = 6.dp))
+            path.stem().mapNotNull { g.node(it) }.forEach { TreeRow(nav, it, 0, null, pick) }
+        }
+        path.branches().forEach { b ->
+            Text(tr("Branch") + ": " + tr(b.title() ?: b.id()), style = MaterialTheme.typography.labelMedium, color = Palette.Plum,
+                modifier = Modifier.padding(top = 8.dp))
+            b.note()?.let { Hint(tr(it)) }
+            b.nodes().mapNotNull { g.node(it) }.forEach { TreeRow(nav, it, 1, null, pick) }
+        }
+    }
+}
+
+/** Ways you have not considered, proposed by a model; none enters the graph until you bring it to the Navigator and approve. */
+@Composable
+private fun IdeasPanel(nav: NavigatorViewModel) {
+    Column(Modifier.fillMaxWidth().padding(top = 10.dp)) {
+        Text(tr("Paths you have not considered"), style = MaterialTheme.typography.titleSmall, color = Palette.Plum)
+        Hint("A model looks at your paths and suggests ways you may have missed. These are ideas, not facts: check each one. " +
+             "Private parts of your graph are not sent, and nothing joins the graph unless you bring it to the Navigator and approve.")
+        nav.pathIdeas.forEach { i ->
+            Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                Text(i.title, style = MaterialTheme.typography.bodyMedium)
+                Hint(i.why)
+                i.firstStep?.let { Hint(tr("First step") + ": " + it) }
+                i.check?.let { Hint(tr("To check") + ": " + it) }
+                Row {
+                    TextButton(onClick = { nav.takeIdea(i) }, enabled = !nav.busy) { Text("Bring it to the Navigator") }
+                    TextButton(onClick = { nav.dropIdea(i) }) { Text("Not for me") }
+                }
+            }
+            HorizontalDivider()
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(onClick = { nav.findIdeas() }, enabled = !nav.findingIdeas) { Text("Look for other paths") }
+            if (nav.findingIdeas) CircularProgressIndicator(Modifier.padding(start = 8.dp).size(18.dp))
+        }
+    }
 }
 
 // ------------------------------------------------------- the path to a node

@@ -70,7 +70,7 @@ internal fun counts(nav: NavigatorViewModel): HomeCounts {
         val floor = Priority.floor(g, Priority.of(node))
         node.deadline != null && !node.deadline.isBefore(today) && floor > 0 && p < floor
     } ?: 0
-    val needs = nav.issues.count { it.severity() == Severity.BLOCKING } + nav.syncDiffs.size
+    val needs = nav.issues.count { it.severity() == Severity.BLOCKING } + nav.syncDiffs.size + nav.waiting.size
     return HomeCounts(nav.proposals.count { it.status() == "PENDING" }, meta?.plannedH, meta != null && meta.status != "PROPOSED",
         atRisk, needs)
 }

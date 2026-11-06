@@ -34,7 +34,10 @@ class MainActivity : FragmentActivity() {
     /** Text another app shared with Chronos: a chat's reply for the question waiting for it. */
     private fun received(intent: android.content.Intent?) {
         // A log reminder: open the Log.
-        if (intent?.getStringExtra("open") == "log") { vm.openTab = "log"; intent.removeExtra("open") }
+        when (intent?.getStringExtra("open")) {
+            "log" -> { vm.openTab = "log"; intent.removeExtra("open") }
+            "today" -> { vm.openTab = "today"; intent.removeExtra("open") }
+        }
         val text = when (intent?.action) {
             android.content.Intent.ACTION_SEND -> intent.getStringExtra(android.content.Intent.EXTRA_TEXT)
             android.content.Intent.ACTION_PROCESS_TEXT -> intent.getCharSequenceExtra(android.content.Intent.EXTRA_PROCESS_TEXT)?.toString()
@@ -56,6 +59,7 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         if (savedInstanceState == null) received(intent)
         com.chronos.auto.Reminders.schedule(this)
+        com.chronos.auto.TalkReminder.schedule(this)
         com.chronos.auto.QuickLog.onChange = { runOnUiThread { vm.refreshQuick() } }
         setContent {
             val vm = this.vm
@@ -135,7 +139,10 @@ fun ChronosApp(vm: ChronosViewModel = viewModel(), nav: NavigatorViewModel = vie
     // answer that unlocks the solver would throw them out of Setup.
     LaunchedEffect(vm.loading) { if (!vm.loading && vm.ready && tab == Tab.Setup) tab = Tab.Horizon }
     LaunchedEffect(vm.openTab) {
-        when (vm.openTab) { "log" -> tab = Tab.Log; "setup" -> tab = Tab.Setup; "priorities" -> tab = Tab.Priorities }
+        when (vm.openTab) {
+            "log" -> tab = Tab.Log; "setup" -> tab = Tab.Setup; "priorities" -> tab = Tab.Priorities
+            "today" -> { tab = Tab.Navigator; nav.page = NavPage.TODAY; nav.openProposal = null }
+        }
         vm.openTab = null
     }
     LaunchedEffect(vm.message) {

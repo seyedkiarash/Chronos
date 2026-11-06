@@ -73,8 +73,10 @@ final class Model {
 
     /** Per node: the Beta of the share of planned time worked on it (its activity's, else the pooled one). */
     final double[] adhA, adhB, adhMean;
-    /** The pooled share, for what is not one node's: the week's expected capacity. */
+    /** The pooled share of planned goal time worked. */
     final double adhPooled;
+    /** A node may run ahead of the overall share only up to doing all that is planned for it. */
+    final double relativeCap;
     final double noiseSigma;
     final int dailyDays;
 
@@ -255,6 +257,7 @@ final class Model {
         Param pooled = g.params.get(Estimator.POST + "adherence");
         if (pooled == null) pooled = g.params.get("adherence");
         adhPooled = pooled.get("a") / (pooled.get("a") + pooled.get("b"));
+        relativeCap = 1 / adhPooled;
         adhA = new double[n]; adhB = new double[n]; adhMean = new double[n];
         for (int i = 0; i < n; i++) {
             Param own = null;
@@ -264,7 +267,7 @@ final class Model {
             }
             Param p = own != null ? own : pooled;
             adhA[i] = p.get("a"); adhB[i] = p.get("b");
-            adhMean[i] = adhA[i] / (adhA[i] + adhB[i]);
+            adhMean[i] = adhA[i] / (adhA[i] + adhB[i]) / adhPooled;
         }
         noiseSigma = value(g, "forecast.noise_sigma");
         dailyDays = (int) Math.round(value(g, "forecast.daily_weeks") * 7);

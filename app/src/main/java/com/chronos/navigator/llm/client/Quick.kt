@@ -216,3 +216,69 @@ object Quick {
         return out.sorted()
     }
 }
+
+/**
+ * Ways to your goals you may not have considered (your idea of 2 Nov 2026). A model is shown the paths
+ * and their branches — never a private node — and suggests others. They stay ideas, in a file of their
+ * own, outside the graph and the forecast, until you bring one to the Navigator and approve its package.
+ */
+object PathIdeas {
+    data class Idea(val id: String, val path: String?, val title: String, val why: String, val firstStep: String?, val check: String?)
+
+    private val gson = com.google.gson.GsonBuilder().disableHtmlEscaping().create()
+    private fun file(context: Context) = java.io.File(context.filesDir, "navigator-path-ideas.json")
+
+    fun read(context: Context): List<Idea> = file(context).takeIf { it.exists() }?.let {
+        runCatching { gson.fromJson<List<Idea>>(it.readText(), object : TypeToken<List<Idea>>() {}.type) }.getOrNull()
+    } ?: emptyList()
+
+    private fun save(context: Context, ideas: List<Idea>) = file(context).writeText(gson.toJson(ideas))
+
+    fun drop(context: Context, id: String): List<Idea> = read(context).filter { it.id != id }.also { save(context, it) }
+
+    private const val SYSTEM = "You help a university student see ways to their goals they may not have considered. You get " +
+        "their main paths and branches. Suggest up to 4 realistic alternatives or additions that are NOT already there: other " +
+        "programs, routes, orders of steps or ways to gain the same thing. Consider their citizenship and constraints when given. " +
+        "Be honest about uncertainty: you cannot look anything up here, so name no date or requirement as a fact, and say in " +
+        "`check` what they must verify. Do not suggest more hours of work in general; they are short of hours. Answer in the " +
+        "student's language (fa = Persian, en = English) as JSON only: {\"ideas\": [{\"path\": id of the path it belongs to, " +
+        "\"title\": short name, \"why\": one or two sentences, \"first_step\": one small step, \"check\": what to verify}]}"
+
+    /** Asks a model for more; what you already have or set aside stays as it is. */
+    fun find(context: Context): List<Idea> {
+        val store = DatabaseWiring.navigator(context)
+        val g = store.load() ?: throw IllegalStateException("Import the goal graph first.")
+        val hidden = EstimatePrior.privateNodes(g)
+        val lines = com.chronos.navigator.model.Paths.of(g).filter { p -> p.id() != com.chronos.navigator.model.Paths.OTHER && p.goal() !in hidden }
+            .joinToString("\n") { p ->
+                "- [" + p.id() + "] " + p.title() + (p.goal()?.let { id -> " -> " + g.node(id)?.shortName() } ?: "") +
+                    p.branches().filter { b -> b.nodes().none { it in hidden } }.joinToString("") { "\n    branch: " + it.title() }
+            }
+        val state = g.raw?.getAsJsonObject("user_state")
+        val citizenship = state?.get("citizenship")?.toString() ?: "not stated"
+        val have = read(context)
+        val user = "Student language: " + (if (com.chronos.auto.AutoPlanner.prefs(context).getString("lang", null) == "fa") "fa" else "en") +
+            "\nToday: " + ChronosRepository.logicalToday() + "\nCitizenship: " + citizenship +
+            "\n\nTheir paths:\n" + lines + "\n\nGoals with dates:\n" + goals(context) +
+            (if (have.isEmpty()) "" else "\n\nAlready suggested, do not repeat:\n" + have.joinToString("\n") { "- " + it.title })
+        val said = Quick.ask(context, SYSTEM, user, "PATH_IDEAS", "path_ideas", maxTokens = 3000, readMs = 60_000)
+        val o = com.chronos.navigator.llm.ProposalValidator.extractJson(said.text)
+            ?: throw IllegalStateException("The answer could not be read; try again.")
+        fun str(e: JsonObject, k: String) = e.get(k)?.takeIf { it.isJsonPrimitive }?.asString?.trim()?.takeIf { it.isNotEmpty() }
+        val fresh = o.getAsJsonArray("ideas")?.mapNotNull { el ->
+            val e = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapNotNull null
+            val title = str(e, "title") ?: return@mapNotNull null
+            Idea(java.util.UUID.randomUUID().toString(), str(e, "path"), title, str(e, "why") ?: "", str(e, "first_step"), str(e, "check"))
+        } ?: emptyList()
+        return (have + fresh.filter { f -> have.none { it.title == f.title } }).takeLast(12).also { save(context, it) }
+    }
+
+    private fun goals(context: Context) = Quick.goals(context)
+
+    fun message(context: Context, i: Idea): String =
+        if (com.chronos.auto.AutoPlanner.prefs(context).getString("lang", null) == "fa")
+            "یک مسیر که تا حالا در نظر نگرفته بودم: " + i.title + ". " + i.why + (i.check?.let { " باید بررسی شود: $it" } ?: "") +
+                " اگر به نظرت ارزشش را دارد، جایش را روی گراف پیشنهاد بده."
+        else "A path I had not considered: " + i.title + ". " + i.why + (i.check?.let { " To verify: $it" } ?: "") +
+            " If it is worth it, propose its place on the graph."
+}

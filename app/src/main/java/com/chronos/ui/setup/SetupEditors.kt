@@ -465,7 +465,10 @@ private fun ActivityEditor(vm: ChronosViewModel, e: Editing.OfActivity, issues: 
                 "A rest the app chooses: never planned on its own, but picked for free time and breaks inside long work, " +
                 "as long as the day stays under your ceiling of stimulation.") { v ->
                 upd { this.leisure = v; if (v) { restOnly = false; sacrifice = null; if (dopamine == null) dopamine = 0.5 } } }
-            if (a.pauseUntil != null && !a.pauseUntil!!.isBefore(java.time.LocalDate.now())) {
+            if (a.pauseUntil == com.chronos.navigator.bridge.Placement.HOLD) {
+                Text(tr("Not planned yet: it waits for its place on the goal graph. See Navigator, Needs your answer."),
+                    style = MaterialTheme.typography.labelSmall, color = Palette.Brick)
+            } else if (a.pauseUntil != null && !a.pauseUntil!!.isBefore(java.time.LocalDate.now())) {
                 Hint(tr("Paused by the Navigator") + ": " + dateText(a.pauseFrom!!) + " – " + dateText(a.pauseUntil!!))
                 TextButton(onClick = { upd { pauseFrom = null; pauseUntil = null } }) { Text("End the pause") }
             }

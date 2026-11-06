@@ -193,4 +193,25 @@ public class LeisureTest {
         l.planned = 60; l.actual = 60; l.focus = focus; l.attain = 100.0;
         return l;
     }
+
+    /**
+     * A rest that takes you out of the house only on a day you go out anyway (6 Nov 2026): on a day
+     * with nothing away a walk outside is never chosen, while a rest at home still can be.
+     */
+    @Test
+    public void aWalkOutsideNeedsAnOutingThatDay() {
+        Config cfg = ParityHarness.build(DAY);
+        int dow = Slots.dow(DAY);
+        cfg.activities.removeIf(a -> a.away);
+        cfg.commitments.removeIf(c -> c.kind == com.chronos.model.Enums.CommitmentKind.FIXED && c.away
+            && c.sessions.stream().anyMatch(s -> s.day == dow));
+        Activity walk = leisure("walk", 0.15, 15, 45, 1);
+        walk.away = true;
+        cfg.activities.add(walk);
+        cfg.activities.add(leisure("film", 0.5, 30, 90, 1));
+        DaySequencer.Result r = DaySequencer.run(cfg, dow, Map.of("lit", 3.0, "english", 1.0), 7L);
+        List<Block> fun = leisureIn(r);
+        assertTrue("a rest at home is still chosen", fun.stream().anyMatch(b -> b.act.id.equals("film")));
+        assertTrue("no walk on a day with no outing", fun.stream().noneMatch(b -> b.act.id.equals("walk")));
+    }
 }

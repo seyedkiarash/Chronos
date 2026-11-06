@@ -3638,4 +3638,56 @@ internal val Fa: Map<String, String> = mapOf(
         to "روی هر کلید یک کلمه می‌فرستد. کلیدی که رد شود، اعتبارش تمام شده باشد یا خیلی کند باشد، اینجا معلوم می‌شود؛ برنامه از هر پاسخ هم یاد می‌گیرد و پاسخ‌های سریع و جایگزین‌ها را به سرویس‌هایی می‌فرستد که اخیراً سریع‌تر جواب داده‌اند.",
     "Quick first reply while the crew works"
         to "پاسخ سریع اول، تا وقتی گروه مدل‌ها کار می‌کند",
+    "All paths"
+        to "همهٔ مسیرها",
+    "Where it leads"
+        to "به کجا می‌رسد",
+    "The main line"
+        to "خط اصلی",
+    "Branch"
+        to "شاخه",
+    "Paths you have not considered"
+        to "مسیرهایی که در نظر نگرفته‌ای",
+    "A model looks at your paths and suggests ways you may have missed. These are ideas, not facts: check each one. Private parts of your graph are not sent, and nothing joins the graph unless you bring it to the Navigator and approve."
+        to "یک مدل مسیرهایت را می‌بیند و راه‌هایی را پیشنهاد می‌کند که شاید از قلم افتاده باشند. این‌ها ایده‌اند نه واقعیت؛ هر کدام را بررسی کن. بخش‌های خصوصی گراف فرستاده نمی‌شوند و هیچ چیز وارد گراف نمی‌شود مگر اینکه آن را به ناوبری بدهی و تأیید کنی.",
+    "First step"
+        to "قدم اول",
+    "To check"
+        to "باید بررسی شود",
+    "Bring it to the Navigator"
+        to "به ناوبری بده",
+    "Not for me"
+        to "به کارم نمی‌آید",
+    "Look for other paths"
+        to "جستجوی مسیرهای دیگر",
+    "Waiting for a place on the graph"
+        to "در انتظار جا روی گراف",
+    "These are in Chronos but on no path, so they are not planned yet. Choose where each belongs, or ask the Navigator: it proposes a place, or says it serves no path, and you approve."
+        to "این‌ها در Chronos هستند ولی روی هیچ مسیری نیستند، پس فعلاً برنامه‌ریزی نمی‌شوند. جای هر کدام را انتخاب کن یا از ناوبری بپرس: جایی پیشنهاد می‌دهد یا می‌گوید به هیچ مسیری کمک نمی‌کند، و تو تأیید می‌کنی.",
+    "It belongs under"
+        to "زیرمجموعهٔ",
+    "Put it here"
+        to "همین‌جا بگذار",
+    "Ask the Navigator"
+        to "از ناوبری بپرس",
+    "New goals in Chronos need a place on the graph"
+        to "هدف‌های تازهٔ Chronos باید جایی روی گراف داشته باشند",
+    "A new deadline in a group already on the graph needs nothing. Anything else is not planned until you place it or approve the Navigator's proposal."
+        to "ددلاین تازه در گروهی که روی گراف هست کاری نمی‌خواهد. بقیه تا وقتی جایشان را تعیین نکنی یا پیشنهاد ناوبری را تأیید نکنی برنامه‌ریزی نمی‌شوند.",
+    "Not planned yet: it waits for its place on the goal graph. See Navigator, Needs your answer."
+        to "هنوز برنامه‌ریزی نمی‌شود: منتظر جایش روی گراف است. ناوبری، بخش «نیاز به پاسخ تو» را ببین.",
+    "It waits for its place on the goal graph: see Navigator, Needs your answer."
+        to "منتظر جایش روی گراف است: ناوبری، بخش «نیاز به پاسخ تو» را ببین.",
+    "Weekly hours: Chronos differs from the graph"
+        to "ساعت هفتگی: Chronos با گراف فرق دارد",
+    "Remind me in the evening"
+        to "شب‌ها یادآوری کن",
+    "Once a day at this time, only if you have not talked yet."
+        to "روزی یک بار در این ساعت، فقط اگر هنوز حرف نزده باشی.",
+    "Notifications are off for Chronos, so the reminder cannot reach you."
+        to "اعلان‌های Chronos خاموش است، پس یادآوری به تو نمی‌رسد.",
+    "Allow notifications"
+        to "اجازهٔ اعلان",
+    "Everything else"
+        to "بقیهٔ موارد",
 )

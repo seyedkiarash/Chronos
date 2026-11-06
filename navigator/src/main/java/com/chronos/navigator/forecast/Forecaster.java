@@ -142,7 +142,11 @@ public final class Forecaster {
             Arrays.fill(failed, false);
             Arrays.fill(mix, null);
 
-            for (int i = 0; i < m.n; i++) adh[i] = Math.max(0.05, Rand.beta(world, m.adhA[i], m.adhB[i]));
+            // Capacity is learned from the hours actually worked, so it already holds the overall share of
+            // the plan that gets done: only how a node's work compares with that overall share is left to
+            // apply. Multiplying by the whole share counted it twice (found 6 Nov 2026).
+            for (int i = 0; i < m.n; i++)
+                adh[i] = Math.min(m.relativeCap, Math.max(0.05, Rand.beta(world, m.adhA[i], m.adhB[i])) / m.adhPooled);
             for (int t = 0; t < 3; t++) capMu[t] = m.capMean[t] + m.capSd[t] * world.nextGaussian();
             for (int i = 0; i < m.n; i++) {
                 need[i] = sampleNeed(i, world, rnd);
@@ -276,7 +280,7 @@ public final class Forecaster {
                 if (!on[i]) continue;
                 // What Chronos has planned for this node today is what will be worked on it.
                 Double p = chronos != null && chronos.get(i) != null ? chronos.get(i) : plan == null ? null : plan.get(i);
-                double want = p != null ? p * len : m.floorOn(i, day) * len;
+                double want = p != null ? p * len : Math.max(m.floorOn(i, day), pace(i, day)) * len;
                 if (chronos != null && chronos.get(i) != null) {
                     // Chronos re-plans every night: what was not done comes back on the days left before
                     // the deadline, so a run that fell behind gets more than the first plan said.
@@ -286,14 +290,21 @@ public final class Forecaster {
                         if (behind > 1) want *= Math.min(3, behind);
                     }
                 }
+                // Standing hours that must hold (the courses) come back after a day that had no room for them.
+                if (m.stream[i] && m.nodes[i].hard)
+                    want += Math.max(0, m.floorOn(i, day) * day - streamHours[i]) / 7 * len;
                 want = Math.min(want, m.capPerDay[i] * len);
                 if (!m.stream[i]) want = Math.min(want, left(i));
                 alloc[i] = Math.max(0, want);
                 wanted += alloc[i];
             }
             if (wanted > left && wanted > 0) {
-                double s = left / wanted;
-                for (int i = 0; i < m.n; i++) alloc[i] *= s;
+                // Too much for the day: what has a firm date goes first, as Chronos does, the rest shares what remains.
+                double firm = 0;
+                for (int i = 0; i < m.n; i++) if (firm(i)) firm += alloc[i];
+                double sFirm = firm > left ? left / firm : 1;
+                double sRest = wanted > firm ? Math.max(0, left - firm * sFirm) / (wanted - firm) : 0;
+                for (int i = 0; i < m.n; i++) alloc[i] *= firm(i) ? sFirm : sRest;
                 return;
             }
             left -= wanted;
@@ -313,6 +324,23 @@ public final class Forecaster {
                 }
                 left -= given;
             }
+        }
+
+        /**
+         * What a task with a deadline asks for a day: its work left over the days left, as Chronos paces it.
+         * Without this, floors that fill the capacity left such a task nothing, however near its date.
+         */
+        private double pace(int i, int day) {
+            if (m.stream[i] || m.deadline[i] == Model.NONE) return 0;
+            return left(i) / Math.max(firm(i) ? 3 : 7, m.deadline[i] - day);
+        }
+
+        /** What goes first when a day cannot hold everything. */
+        private boolean firm(int i) {
+            if (!on[i]) return false;
+            if (m.nodes[i].hard) return true;
+            // A small dated task with no standing hours of its own is done when its date comes, not shared away.
+            return !m.stream[i] && m.deadline[i] != Model.NONE && (m.nodes[i].hardDeadline || m.floorPerDay[i] <= 0);
         }
 
         private double room(int i, int len) {
@@ -343,7 +371,10 @@ public final class Forecaster {
                     if (t == NodeType.EXTERNAL_TRACK) {
                         if (m.children[i].length == 0) continue;
                         double last = 0; boolean all = true;
-                        for (int c : m.children[i]) { if (done[c] >= NEVER) all = false; else last = Math.max(last, done[c]); }
+                        for (int c : m.children[i]) {
+                            if (m.stream[c]) continue;      // a stream never finishes: it cannot hold the track open
+                            if (done[c] >= NEVER) all = false; else last = Math.max(last, done[c]);
+                        }
                         if (all) { done[i] = last; changed = true; }
                         continue;
                     }

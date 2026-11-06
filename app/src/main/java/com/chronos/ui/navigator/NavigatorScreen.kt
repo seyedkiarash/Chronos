@@ -57,6 +57,7 @@ fun NavigatorScreen(nav: NavigatorViewModel) {
         NavPage.WEEK -> if (g != null) WeekPanel(nav, g)
         NavPage.GOALS -> if (g != null) { ForecastPanel(nav, g); GraphWizard(g, nav) }   // the map is on the home (25 Oct 2026)
         NavPage.NEEDS -> {
+            if (g != null) WaitingPanel(nav, g)
             if (g != null) MissingPanel(nav, g)
             SyncPanel(nav)
             QuestionsPanel(nav)
@@ -65,11 +66,44 @@ fun NavigatorScreen(nav: NavigatorViewModel) {
         NavPage.SETTINGS -> {
             ImportPanel(nav)
             if (nav.refused.isNotEmpty()) RefusedPanel(nav.refused)
+            Panel(null, Palette.Plum) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(tr("New goals in Chronos need a place on the graph"), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    Switch(checked = nav.placementOn, onCheckedChange = { nav.setPlacement(it) })
+                }
+                Hint("A new deadline in a group already on the graph needs nothing. Anything else is not planned until you place it or approve the Navigator's proposal.")
+            }
             LlmPanel(nav)
             TriggersPanel(nav)
             ParamsPanel(nav)
         }
         NavPage.HOME -> { }
+    }
+}
+
+// ------------------------------------------------- waiting for a place (6 Nov 2026)
+
+/** Goal work added to Chronos without a place on the graph: put it under a node, or let the Navigator decide. */
+@Composable
+private fun WaitingPanel(nav: NavigatorViewModel, g: com.chronos.navigator.model.Graph) {
+    if (nav.waiting.isEmpty()) return
+    Panel("Waiting for a place on the graph", Palette.Brick) {
+        Hint("These are in Chronos but on no path, so they are not planned yet. Choose where each belongs, or ask the Navigator: " +
+             "it proposes a place, or says it serves no path, and you approve.")
+        val choices = g.nodes.values.filter { it.plannable() && it.takesHours() }.map { it.id to it.shortName() }
+        nav.waiting.forEach { w ->
+            var node by remember(w.key) { mutableStateOf<String?>(null) }
+            Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                Text(w.name + (w.group?.let { "  ·  $it" } ?: ""), style = MaterialTheme.typography.bodyMedium)
+                Choice("It belongs under", node, choices) { node = it }
+                Row {
+                    Button(onClick = { node?.let { nav.place(w, it) } }, enabled = node != null && !nav.busy) { Text("Put it here") }
+                    Spacer(Modifier.width(8.dp))
+                    OutlinedButton(onClick = { nav.askAboutPlace(w) }, enabled = !nav.busy) { Text("Ask the Navigator") }
+                }
+            }
+            HorizontalDivider()
+        }
     }
 }
 

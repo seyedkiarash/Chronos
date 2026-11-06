@@ -26,6 +26,7 @@ internal fun TodayPanel(nav: NavigatorViewModel) {
         Hint("Talk about the day: how you felt, what happened, what is on your mind, what you want. It stays on this phone. " +
              "The model sees this conversation and the app's short summary of today — not your log; the crew later sees " +
              "only the summary you wrap up below.")
+        ReminderRow(nav)
         if (d == null) { LinearProgressIndicator(Modifier.fillMaxWidth()); return@Panel }
         d.turns.forEach { t ->
             when {
@@ -65,6 +66,36 @@ internal fun TodayPanel(nav: NavigatorViewModel) {
         d.signals?.let { SignalsCard(nav, d) }
     }
     JournalPanel(nav)
+}
+
+/** The evening's reminder: on or off, and when. Only sent if you have not talked yet that day. */
+@Composable
+private fun ReminderRow(nav: NavigatorViewModel) {
+    val permission = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { }
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 6.dp)) {
+        Text(tr("Remind me in the evening"), style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+        Switch(checked = nav.talkOn, onCheckedChange = { on ->
+            nav.changeTalkOn(on)
+            if (on && !nav.notificationsAllowed && android.os.Build.VERSION.SDK_INT >= 33)
+                permission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        })
+    }
+    if (nav.talkOn) {
+        var text by remember { mutableStateOf(nav.talkTime) }
+        val ok = text.matches(Regex("([01]\\d|2[0-3]):[0-5]\\d"))
+        OutlinedTextField(value = text, singleLine = true, isError = !ok,
+            onValueChange = { text = it; if (it.matches(Regex("([01]\\d|2[0-3]):[0-5]\\d"))) nav.changeTalkTime(it) },
+            label = { Text(tr("Time"), style = MaterialTheme.typography.labelSmall) },
+            modifier = Modifier.width(120.dp))
+        Hint("Once a day at this time, only if you have not talked yet.")
+        if (!nav.notificationsAllowed) {
+            Text(tr("Notifications are off for Chronos, so the reminder cannot reach you."),
+                style = MaterialTheme.typography.labelSmall, color = Palette.Brick)
+            if (android.os.Build.VERSION.SDK_INT >= 33)
+                TextButton(onClick = { permission.launch(android.Manifest.permission.POST_NOTIFICATIONS) }) { Text("Allow notifications") }
+        }
+    }
 }
 
 @Composable

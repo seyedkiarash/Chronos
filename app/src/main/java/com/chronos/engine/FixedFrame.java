@@ -67,10 +67,15 @@ public final class FixedFrame {
     }
 
     public static boolean hasAwayWork(Config cfg, int dow) {
+        return goingOut(cfg, dow);
+    }
+
+    /** Whether something fixed takes you out on this weekday. A leisure that could is only chosen, never a reason. */
+    public static boolean goingOut(Config cfg, int dow) {
         for (Commitment c : cfg.commitments)
             if (c.kind == CommitmentKind.FIXED && c.away)
                 for (Commitment.Session s : c.sessions) if (s.day == dow) return true;
-        for (Activity a : cfg.activities) if (a.away && a.days.contains(dow)) return true;
+        for (Activity a : cfg.activities) if (a.away && !a.leisure && !a.archived && a.days.contains(dow)) return true;
         return false;
     }
 

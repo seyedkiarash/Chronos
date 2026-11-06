@@ -138,7 +138,7 @@ public final class Probe {
         return Math.max(1, (m.deadline[i] - from + 1) / 7.0);
     }
 
-    /** Goal hours to share out: the expected hours of the week's days, times your mean adherence. */
+    /** Goal hours to share out: the expected hours of the week's days (learned from hours worked, so adherence is already in them). */
     public double expectedCapacity() {
         double h = 0;
         for (int d = from; d < from + 7 && d < m.horizonDays; d++) {
@@ -148,6 +148,6 @@ public final class Probe {
             double s = a[0] + a[1] + a[2];
             for (int t = 0; t < 3; t++) h += a[t] / s * Math.max(0, m.capMean[t]);
         }
-        return h * m.adhPooled;
+        return h;
     }
 }
