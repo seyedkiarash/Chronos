@@ -484,8 +484,8 @@ object CrewRun {
             if (moved.isNotEmpty()) o.addProperty("why", o.get("why").asString + " " + (if (fa) "اثر: " else "Effect: ") +
                 moved.joinToString(", ") { (base.g.node(it.nodeId())?.shortName() ?: it.title()) + " " + Math.round(it.before().p() * 100) + "→" + Math.round(it.after().p() * 100) + "%" })
         }
-        val summary = if (fa) "تا ${crunch.until()} حدود ${Math.round(crunch.need())} ساعت کار داری و حدود ${Math.round(crunch.have())} ساعت وقت."
-            else "By ${crunch.until()} you have about ${Math.round(crunch.need())} hours of work and about ${Math.round(crunch.have())} hours for it."
+        val summary = if (fa) "تا ${day(crunch.until(), fa)} حدود ${Math.round(crunch.need())} ساعت کار داری و حدود ${Math.round(crunch.have())} ساعت وقت."
+            else "By ${day(crunch.until(), fa)} you have about ${Math.round(crunch.need())} hours of work and about ${Math.round(crunch.have())} hours for it."
         val text = JsonObject().apply {
             addProperty("summary", summary)
             addProperty("rationale", if (fa) "همهٔ ددلاین‌ها، نزدیک و دور، با ساعت‌های یادگرفته‌شده از لاگ سنجیده شد. هر کدام را جدا تأیید کن یا کنار بگذار؛ اولویت با چیزهایی است که اهمیت کمتری دارند."
@@ -497,7 +497,12 @@ object CrewRun {
         }
         val parsed = ChangeSet.read(base.g, base.today, base.chronos, text)
         if (!parsed.ok() || parsed.empty()) return null
-        val job = Job(java.util.UUID.randomUUID().toString(), "DENSITY", why, System.currentTimeMillis())
+        val asked = when {
+            why == "nightly" -> if (fa) "بررسی شبانه" else "The nightly check"
+            fa -> "کارها زیاد نیست؟"
+            else -> "Is it too much?"
+        }
+        val job = Job(java.util.UUID.randomUUID().toString(), "DENSITY", asked, System.currentTimeMillis())
         save(context, job)
         val measured = measure(context, base, parsed.ops())
         val inbox = NavProposals(DatabaseWiring.navigator(context).dao())
@@ -507,6 +512,9 @@ object CrewRun {
         finish(context, job, id, parsed.message() ?: summary)
         return id
     }
+
+    private fun day(d: LocalDate, fa: Boolean) =
+        com.chronos.ui.common.formatDate(if (fa) com.chronos.ui.common.Lang.Persian else com.chronos.ui.common.Lang.English, d)
 
     fun densityWithin(context: Context, days: Long): Boolean =
         jobs(context).any { it.kind == "DENSITY" && it.createdAt > System.currentTimeMillis() - days * 86_400_000L }
@@ -557,11 +565,12 @@ object CrewRun {
         if (first.chronos()) {
             val goal = base.cfg.goals.firstOrNull { (it.name?.trim() ?: it.id) == first.id() } ?: return null
             val act = base.cfg.activities.firstOrNull { it.goalId == goal.id && !it.archived } ?: return null
-            actions.add(JsonObject().apply { addProperty("type", "archive_activity"); addProperty("activity", act.name) })
+            actions.add(JsonObject().apply { addProperty("type", "pause_activity"); addProperty("activity", act.name)
+                addProperty("from", base.today.toString()); addProperty("until", first.due().toString()) })
             return JsonObject().apply {
                 addProperty("title", if (fa) "«${first.title()}» را رها کن" else "Let \"${first.title()}\" go")
-                addProperty("why", if (fa) "حدود ${Math.round(first.hours())} ساعت کار تا ${first.due()} و اهمیت کمتر از بقیه. لاگش می‌ماند و هر وقت خواستی برمی‌گردد."
-                    else "About ${Math.round(first.hours())} hours by ${first.due()}, and less important than the rest. Its log stays and you can bring it back.")
+                addProperty("why", if (fa) "حدود ${Math.round(first.hours())} ساعت کار تا ${day(first.due(), fa)} و اهمیت کمتر از بقیه. تا آن تاریخ برنامه‌ریزی نمی‌شود؛ لاگش می‌ماند و در Setup می‌توانی برش گردانی."
+                    else "About ${Math.round(first.hours())} hours by ${day(first.due(), fa)}, and less important than the rest. It is not planned up to that date; its log stays, and Setup can bring it back.")
                 add("actions", actions)
             }
         }
@@ -591,9 +600,9 @@ object CrewRun {
         if (actions.size() == 0) return null
         val name = base.g.node(f.members().last().id())?.shortName() ?: first.title()
         return JsonObject().apply {
-            addProperty("title", if (fa) "«$name» را تا $reach عقب ببر" else "Move \"$name\" to about $reach")
-            addProperty("why", if (fa) "حدود ${Math.round(f.hours())} ساعت کار دارد و با ساعت‌هایت تا ${f.lastDue()} نمی‌رسد. می‌توانی به‌جایش ساعتش را بیشتر کنی یا کمی از آن را کنار بگذاری."
-                else "About ${Math.round(f.hours())} hours of work, which your hours do not reach by ${f.lastDue()}. You could instead give it more hours, or set part of it aside.")
+            addProperty("title", if (fa) "«$name» را تا ${day(reach, fa)} عقب ببر" else "Move \"$name\" to about ${day(reach, fa)}")
+            addProperty("why", if (fa) "حدود ${Math.round(f.hours())} ساعت کار دارد و با ساعت‌هایت تا ${day(f.lastDue(), fa)} نمی‌رسد. می‌توانی به‌جایش ساعتش را بیشتر کنی یا کمی از آن را کنار بگذاری."
+                else "About ${Math.round(f.hours())} hours of work, which your hours do not reach by ${day(f.lastDue(), fa)}. You could instead give it more hours, or set part of it aside.")
             add("actions", actions)
         }
     }

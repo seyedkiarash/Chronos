@@ -39,12 +39,9 @@ public class DensityTest {
             load("must", 2000, 120, 2, true), load("nice", 400, 100, 0, false), load("wanted", 400, 110, 1, false)));
         assertFalse(r.fits());
         assertTrue(r.giving().stream().noneMatch(x -> x.family().equals("must")));
-        int nice = -1, wanted = -1;
-        for (int i = 0; i < r.giving().size(); i++) {
-            if (r.giving().get(i).family().equals("nice")) nice = i;
-            if (r.giving().get(i).family().equals("wanted")) wanted = i;
-        }
-        assertTrue(nice >= 0 && wanted > nice);
+        assertTrue(r.giving().stream().anyMatch(x -> x.family().equals("nice")));
+        assertTrue("what matters more is left alone while something that matters less can give way",
+            r.giving().stream().noneMatch(x -> x.family().equals("wanted")));
     }
 
     @Test

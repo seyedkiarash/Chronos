@@ -11,7 +11,11 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,6 +29,7 @@ import com.chronos.navigator.model.Issue.Severity
 import com.chronos.navigator.model.Priority
 import com.chronos.navigator.store.NavStore
 import java.time.LocalDate
+import kotlinx.coroutines.launch
 
 /*
  * The Navigator as a dashboard (your choice of 16 Oct 2026): a home with the
@@ -86,11 +91,7 @@ internal fun NavigatorHome(nav: NavigatorViewModel) {
         TextButton(onClick = { nav.page = NavPage.SETTINGS }) { Text("Open Settings") }
         return
     }
-    // The day's conversation first: what you would open every evening (3 Nov 2026).
-    Panel("Today's conversation", Palette.Teal) {
-        LinkRow("How did today go?", "How you feel, what is on your mind — a few minutes, kept on this phone") { nav.page = NavPage.TODAY }
-    }
-    CrewPanel(nav, compact = true)
+    // What stands first, then a way to any section at one tap (your choice of 6 Nov 2026).
     val c = counts(nav)
     Panel("At a glance", Palette.Ochre) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -113,8 +114,31 @@ internal fun NavigatorHome(nav: NavigatorViewModel) {
             if (c.needs > 0) Palette.Brick else Palette.Muted) { nav.page = NavPage.NEEDS }
     }
     }
-    // The map of the graph sits on the home, under the cards (your choice of 25 Oct 2026).
-    nav.graph?.let { NetworkPanel(nav, it) }
+    val scope = rememberCoroutineScope()
+    val toToday = remember { BringIntoViewRequester() }
+    val toTell = remember { BringIntoViewRequester() }
+    val toMap = remember { BringIntoViewRequester() }
+    val toMore = remember { BringIntoViewRequester() }
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 4.dp)) {
+        listOf("Today's conversation" to toToday, "Tell the Navigator" to toTell, "Map of the whole path" to toMap, "More" to toMore)
+            .forEach { (name, to) ->
+                Box(Modifier.padding(end = 6.dp)) { Pill(tr(name), false) { scope.launch { to.bringIntoView() } } }
+            }
+    }
+    Column(Modifier.bringIntoViewRequester(toToday)) {
+    // The day's conversation first: what you would open every evening (3 Nov 2026).
+    Panel("Today's conversation", Palette.Teal) {
+        LinkRow("How did today go?", "How you feel, what is on your mind — a few minutes, kept on this phone") { nav.page = NavPage.TODAY }
+    }
+    }
+    Column(Modifier.bringIntoViewRequester(toTell)) {
+        CrewPanel(nav, compact = true)
+    }
+    // The map of the graph sits on the home (your choice of 25 Oct 2026).
+    Column(Modifier.bringIntoViewRequester(toMap)) {
+        nav.graph?.let { NetworkPanel(nav, it) }
+    }
+    Column(Modifier.bringIntoViewRequester(toMore)) {
     Panel("More", Palette.Muted) {
     LinkRow("Is it too much?", "Every deadline, near and far, against your hours; what could give way, for you to decide") {
         nav.checkDensity() }
@@ -123,6 +147,7 @@ internal fun NavigatorHome(nav: NavigatorViewModel) {
         nav.habitsNow(); nav.page = NavPage.INBOX }
     LinkRow("Learning", "What your log has taught") { nav.page = NavPage.LEARNING }
     LinkRow("Settings", "Goal graph, LLM and crew, automatic checks, parameters") { nav.page = NavPage.SETTINGS }
+    }
     }
 }
 

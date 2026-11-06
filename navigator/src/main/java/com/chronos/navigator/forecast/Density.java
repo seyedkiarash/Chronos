@@ -124,9 +124,16 @@ public final class Density {
         // What could lighten the coming days, and what could lighten the months ahead: neither crowds out the other.
         LocalDate near = today.plusDays(NEAR_DAYS);
         List<Giving> offered = new ArrayList<>();
-        offered.addAll(giving.stream().filter(x -> !x.members().get(0).due().isAfter(near)).limit(MOST_NEAR).toList());
-        offered.addAll(giving.stream().filter(x -> x.members().get(0).due().isAfter(near)).limit(MOST_FAR).toList());
+        offered.addAll(leastImportant(giving.stream().filter(x -> !x.members().get(0).due().isAfter(near)).toList(), MOST_NEAR));
+        offered.addAll(leastImportant(giving.stream().filter(x -> x.members().get(0).due().isAfter(near)).toList(), MOST_FAR));
         return new Report(worst, offered, first, standing * 7);
+    }
+
+    /** What matters more is offered only when nothing that matters less is there to give way. */
+    private static List<Giving> leastImportant(List<Giving> sorted, int most) {
+        if (sorted.isEmpty()) return sorted;
+        int lowest = sorted.get(0).importance();
+        return sorted.stream().filter(x -> x.importance() == lowest).limit(most).toList();
     }
 
     /** The day the hours cover this work and everything due before its end, with the rest kept where it is. */

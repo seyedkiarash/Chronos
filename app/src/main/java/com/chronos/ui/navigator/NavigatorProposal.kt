@@ -162,7 +162,9 @@ internal fun ProposalPage(nav: NavigatorViewModel, id: String) {
     }
 
     val ticked = remember(p.id()) {
-        mutableStateOf((0 until (p.crew()?.getAsJsonArray("groups")?.size() ?: 0)).toSet())
+        // What to give up is a choice to make, one by one: nothing is ticked for you there.
+        val chooseYourself = p.crew()?.get("kind")?.asString == "DENSITY"
+        mutableStateOf(if (chooseYourself) emptySet() else (0 until (p.crew()?.getAsJsonArray("groups")?.size() ?: 0)).toSet())
     }
     // A crew package: what changes and the decision first; the details below, folded.
     if (p.fromCrew()) { CrewProposal(nav, p, ticked); CrewDecide(nav, p, ticked) }
