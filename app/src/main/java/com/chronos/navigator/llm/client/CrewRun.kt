@@ -449,7 +449,8 @@ object CrewRun {
         val inbox = NavProposals(DatabaseWiring.navigator(context).dao())
         val older = inbox.proposals().filter { it.status() == "PENDING" && it.crew()?.get("kind")?.asString == "HABITS" }
         val id = file(context, job, base, parsed, measured, null, null, 1, emptyList())
-        older.forEach { inbox.markOutdated(it.id(), if (fa) "خواندن تازه‌تری از لاگت جایش را گرفت" else "A newer reading of your log replaced it") }
+        // The same changes again come back as the one waiting: it must not replace itself (6 Nov 2026).
+        older.filter { it.id() != id }.forEach { inbox.markOutdated(it.id(), if (fa) "خواندن تازه‌تری از لاگت جایش را گرفت" else "A newer reading of your log replaced it") }
         finish(context, job, id, parsed.message() ?: summary)
         return id
     }
@@ -460,6 +461,9 @@ object CrewRun {
      * here and in a package for you to approve piece by piece. No model is needed. Null when everything fits.
      */
     fun density(context: Context, why: String): String? {
+        // At night, what already waits for your decision is left alone: only you replace it, by asking again.
+        if (why == "nightly" && NavProposals(DatabaseWiring.navigator(context).dao()).proposals()
+                .any { it.status() == "PENDING" && it.crew()?.get("kind")?.asString == "DENSITY" }) return null
         val base = base(context)
         val fa = language(context) == "fa"
         val logs = DatabaseWiring.repository(context).logs()
@@ -508,7 +512,7 @@ object CrewRun {
         val inbox = NavProposals(DatabaseWiring.navigator(context).dao())
         val older = inbox.proposals().filter { it.status() == "PENDING" && it.crew()?.get("kind")?.asString == "DENSITY" }
         val id = file(context, job, base, parsed, measured, null, null, 1, emptyList())
-        older.forEach { inbox.markOutdated(it.id(), if (fa) "سنجش تازه‌تری جایش را گرفت" else "A newer check replaced it") }
+        older.filter { it.id() != id }.forEach { inbox.markOutdated(it.id(), if (fa) "سنجش تازه‌تری جایش را گرفت" else "A newer check replaced it") }
         finish(context, job, id, parsed.message() ?: summary)
         return id
     }

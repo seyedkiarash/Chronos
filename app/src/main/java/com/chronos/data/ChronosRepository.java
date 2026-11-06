@@ -997,6 +997,9 @@ public class ChronosRepository {
      * Apply button forever.
      */
     private List<Calibrator.Change> closeDay(Config cfg, LocalDate day) {
+        // What today's entries taught along the way is learned once, here, in one step, as if never previewed.
+        restoreLiveBase(cfg, day);
+        dropLiveBase();
         // An unusual day still counts its units (settleUnits reads the log itself); it only teaches nothing.
         List<LogEntry> all = learnable(logs());
         long applied = appliedTs();
@@ -1012,6 +1015,89 @@ public class ChronosRepository {
         long now = System.currentTimeMillis();
         mutateState(r -> { r.lastCalibration = day.toString(); r.appliedTs = now; });
         return report;
+    }
+
+    // ------------------------------------------------- learning as you log (6 Nov 2026)
+
+    /** Where the values from before today's first entry are kept; set by the wiring, absent in tests. */
+    private java.io.File liveBaseFile;
+
+    public void setLiveBaseFile(java.io.File f) { liveBaseFile = f; }
+
+    /** The learned values of the morning: the base today's entries are applied to, however many times. */
+    private static final class LiveBase {
+        String day;
+        List<ActivityRow> activities;
+        List<CommitmentRow> commitments;
+    }
+
+    /**
+     * Each entry counts as soon as it is logged: progress moves and the model is fitted on the day so far,
+     * in Setup too, without waiting for the day to close. An activity's fit is an update step that must see a
+     * day once, so each time it starts again from the morning's values with all of today's entries: logging
+     * five blocks learns what one close-out of those five would, and the close-out itself changes nothing
+     * further. The plan is left alone; it is rebuilt when the day closes or when you ask.
+     */
+    public List<Calibrator.Change> learnLive(Config cfg) {
+        LocalDate day = state().today();
+        LiveBase base = readLiveBase();
+        if (base == null || !day.toString().equals(base.day)) writeLiveBase(cfg, day);
+        else restoreLiveBase(cfg, day);
+        List<Calibrator.Change> report = new ArrayList<>(settleUnits(cfg, day));
+        List<LogEntry> all = learnable(logs());
+        List<LogEntry> step = new ArrayList<>();
+        for (LogEntry l : all) if (day.equals(l.date)) step.add(l);
+        if (!step.isEmpty() && Readiness.canSolve(readiness(cfg))) report.addAll(learnFromDay(cfg, all, step));
+        saveConfig(cfg);
+        return report;
+    }
+
+    /** You changed the setup by hand, or applied late entries: from here on that is the base. */
+    public void dropLiveBase() {
+        if (liveBaseFile != null) liveBaseFile.delete();
+    }
+
+    private LiveBase readLiveBase() {
+        if (liveBaseFile == null || !liveBaseFile.exists()) return null;
+        try {
+            return new com.google.gson.Gson().fromJson(new String(java.nio.file.Files.readAllBytes(liveBaseFile.toPath()),
+                java.nio.charset.StandardCharsets.UTF_8), LiveBase.class);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private void writeLiveBase(Config cfg, LocalDate day) {
+        if (liveBaseFile == null) return;
+        LiveBase b = new LiveBase();
+        b.day = day.toString();
+        b.activities = Mappers.activityRows(cfg);
+        b.commitments = Mappers.commitmentRows(cfg);
+        try {
+            java.nio.file.Files.write(liveBaseFile.toPath(), new com.google.gson.Gson().toJson(b)
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        } catch (java.io.IOException ignored) { }
+    }
+
+    /** Puts back only what the fit moves; everything else in the setup stays as it is now. */
+    private void restoreLiveBase(Config cfg, LocalDate day) {
+        LiveBase b = readLiveBase();
+        if (b == null || !day.toString().equals(b.day)) return;
+        for (ActivityRow r : b.activities) {
+            Activity was = Mappers.toModel(r);
+            Activity a = cfg.activity(was.id);
+            if (a == null) continue;
+            a.q = was.q; a.load = was.load; a.recovery = was.recovery;
+            a.physLoad = was.physLoad; a.physRecovery = was.physRecovery; a.dopamine = was.dopamine;
+        }
+        for (CommitmentRow r : b.commitments) {
+            Commitment was = Mappers.toModel(r);
+            for (Commitment c : cfg.commitments)
+                if (c.id.equals(was.id)) {
+                    c.load = was.load; c.recovery = was.recovery; c.physLoad = was.physLoad; c.physRecovery = was.physRecovery;
+                    copySessionLoads(was, c);
+                }
+        }
     }
 
     private long appliedTs() {
@@ -1071,6 +1157,7 @@ public class ChronosRepository {
      * the plan alone — the caller reports whether it has gone out of date.
      */
     public List<Calibrator.Change> applyLateEntries(Config cfg) {
+        dropLiveBase();
         LocalDate open = state().today();
         List<LogEntry> all = learnable(logs());
         long applied = appliedTs();

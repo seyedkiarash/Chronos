@@ -74,6 +74,15 @@ object Companion {
             morning?.energy?.let { append("Morning check: energy $it/5\n") }
             val tags = logs.flatMap { it.tags.orEmpty() }.distinct().take(12)
             if (tags.isNotEmpty()) append("Tags in the log: " + tags.joinToString(", ") + "\n")
+            // The day against its plan and the week around it, so a talk about the day can see both.
+            val planned = logs.filter { it.kind == Enums.LogKind.SESSION }.sumOf { it.planned ?: 0 } / 60.0
+            val skipped = logs.count { it.kind == Enums.LogKind.SESSION && it.at == null }
+            if (planned > 0) append("Of the blocks logged today: ${"%.1f".format(planned)} h were planned, $skipped skipped\n")
+            val week = repo.logs().filter { it.kind == Enums.LogKind.SESSION && it.date != null && !it.date.isAfter(day) && it.date.isAfter(day.minusDays(7)) && (it.actual ?: 0) > 0 }
+            val goalWeek = week.filter { cfg.activity(it.actId)?.goalId != null }
+            if (goalWeek.isNotEmpty()) append("Last seven days: ${"%.1f".format(goalWeek.sumOf { it.actual ?: 0 } / 60.0)} h of goal work: " +
+                goalWeek.groupBy { cfg.activity(it.actId)?.name?.trim() ?: "?" }.mapValues { (_, l) -> l.sumOf { it.actual ?: 0 } / 60.0 }
+                    .toList().sortedByDescending { it.second }.take(6).joinToString(", ") { "${it.first} ${"%.1f".format(it.second)} h" } + "\n")
         }
     }
 
@@ -156,8 +165,18 @@ object Companion {
         val lang = if (persian(context)) "fa" else "en"
         val week = recent(context, day)
         return "Student language: $lang\n\nToday, from their log (the app's summary):\n" + dayFacts(context, day) +
-            "\nTheir goals now:\n" + Quick.goals(context) +
+            "\nTheir goals now, with the chance the app's forecast gives each:\n" + Quick.goals(context) +
+            paths(context) +
             (if (week.size() > 0) "\n\nThe last days, as they summed them up:\n" + week.toString() else "")
+    }
+
+    /** The main paths, private ones left out, so it can see what a day's choices serve. */
+    private fun paths(context: Context): String {
+        val g = DatabaseWiring.navigator(context).load() ?: return ""
+        val hidden = com.chronos.navigator.llm.EstimatePrior.privateNodes(g)
+        val lines = com.chronos.navigator.model.Paths.of(g).filter { it.id() != com.chronos.navigator.model.Paths.OTHER && it.goal() !in hidden }
+            .joinToString("\n") { "- " + it.title() }
+        return if (lines.isBlank()) "" else "\n\nTheir main paths:\n$lines"
     }
 
     /** Opens the day's conversation with the app's own first words, once. */

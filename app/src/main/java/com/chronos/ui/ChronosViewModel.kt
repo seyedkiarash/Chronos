@@ -216,6 +216,31 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
 
     private fun storeLogs(entries: List<LogEntry>) = synchronized(logLock) {
         entries.forEach { repo.addLog(it); unsavedLogs.remove(it.id, it) }
+        learnSoon()
+    }
+
+    private var learning: kotlinx.coroutines.Job? = null
+
+    /**
+     * What you log counts now, not at the end of the day (your request of 6 Nov 2026): a few seconds after
+     * the last entry, progress, the fit and the Navigator's forecast move. The plan itself is left alone.
+     */
+    private fun learnSoon() {
+        learning?.cancel()
+        learning = viewModelScope.launch {
+            kotlinx.coroutines.delay(8_000)
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    val fresh = repo.loadConfig()
+                    val changes = repo.learnLive(fresh)
+                    config = fresh
+                    issues = repo.readiness(fresh)
+                    revision++
+                    if (changes.isNotEmpty()) com.chronos.auto.LogExport.record(app, "entries taken in as logged", emptyList(), changes, fresh)
+                    com.chronos.navigator.bridge.NavEngine.run(app, false)
+                }.onFailure { android.util.Log.w("Chronos", "learning from the log failed", it) }
+            }
+        }
     }
 
     /** Minutes asleep in a logged night: time in bed less the time it took to fall asleep. */
@@ -233,15 +258,19 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
         lightToday = repo.lightDays()[logDay]
         val morning = checkin("morning", logDay)
         val evening = checkin("evening", logDay.minusDays(1))
+        // How you felt and the pressure, as you set them in the day's conversation, where a check-in used to say it.
+        val talked = runCatching { com.chronos.navigator.llm.client.Companion.read(app, logDay.minusDays(1)) }.getOrNull()
         val night = logs.firstOrNull { it.id == "sleep|$logDay" }
         // A short or poor night logged in the sleep box is the morning's "Slept badly".
         val badNight = night != null && ((night.restored ?: 5) <= 2 || sleptMinutes(night)?.let { it < 360 } == true)
         val morningTags = morning?.tags.orEmpty().let { if (badNight && "Slept badly" !in it) it + "Slept badly" else it }
         val recent = (1..3).mapNotNull { checkin("morning", logDay.minusDays(it.toLong()))?.energy }
-        restVerdict = if (morning == null && evening == null) null else
+        val eveningEnergy = evening?.energy ?: talked?.mood
+        val eveningHeavy = evening?.fatigueAfter ?: talked?.stress
+        restVerdict = if (morning == null && eveningEnergy == null && eveningHeavy == null) null else
             com.chronos.engine.RestAdvisor.assess(
                 morning?.energy, morningTags,
-                evening?.energy, evening?.fatigueAfter, evening?.tags.orEmpty(),
+                eveningEnergy, eveningHeavy, evening?.tags.orEmpty(),
                 weekly?.ratio, recent)
     }
 
@@ -272,7 +301,8 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
         val morning = logs.firstOrNull { it.id == "morning|$day" }
         val signs = evening?.tags.orEmpty() + morning?.tags.orEmpty()
         val fixed = com.chronos.navigator.bridge.Bridge.fixedHours(config, com.chronos.engine.Slots.dow(day))
-        return com.chronos.navigator.estimate.DayTypes.suggest(evening?.fatigueAfter, signs, fixed).name
+        val pressure = runCatching { com.chronos.navigator.llm.client.Companion.read(app, day).stress }.getOrNull()
+        return com.chronos.navigator.estimate.DayTypes.suggest(evening?.fatigueAfter ?: pressure, signs, fixed).name
     }
 
     /** Whether a day was closed already, so a change to it reaches what the model learned. */
@@ -369,7 +399,8 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
         val energyToday = rated.filter { it.date == day }.map { it.energy.toDouble() }.takeIf { it.isNotEmpty() }?.average()
         val energyUsual = rated.filter { it.date != null && it.date.isBefore(day) && !it.date.isBefore(day.minusDays(21)) }
             .map { it.energy.toDouble() }.takeIf { it.isNotEmpty() }?.average()
-        return com.chronos.engine.LightDay.suggest(level, morning?.energy,
+        val mood = runCatching { com.chronos.navigator.llm.client.Companion.read(app, day).mood }.getOrNull()
+        return com.chronos.engine.LightDay.suggest(level, morning?.energy ?: mood,
             logs.firstOrNull { it.id == "sleep|$day" }?.let { sleptMinutes(it) }, nights.takeIf { it.isNotEmpty() }?.average()?.toInt(),
             energyToday, energyUsual, restVerdict?.points() ?: 0, planned, firm)
     }
@@ -567,6 +598,8 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
         dayCache.clear()
         requested.clear()
         work {
+            // A setup you changed by hand is the base for what the log teaches from here on.
+            repo.dropLiveBase()
             // Goal work without a place on the graph waits for one (6 Nov 2026).
             val held = config.activities.count { it.pauseUntil == com.chronos.navigator.bridge.Placement.HOLD }
             com.chronos.navigator.bridge.Placement.reconcile(app, config)
@@ -840,6 +873,7 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
             synchronized(logLock) {
                 ids.forEach { if (repo.removeLog(it)) progressMoved = true; unsavedDrops.remove(it) }
             }
+            learnSoon()
             afterRemoval(progressMoved)
         }
     }

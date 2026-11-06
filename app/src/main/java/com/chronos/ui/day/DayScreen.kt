@@ -48,8 +48,10 @@ fun DayScreen(vm: ChronosViewModel) {
         }
     }
 
-    if (date == vm.logDay && vm.restToday)
+    if (date == vm.logDay && vm.restToday) {
         Verdict(Tone.Good, "Rest day", "Goal work is paused; only upkeep and rest activities are planned.")
+        OutlinedButton(onClick = { vm.chooseRestToday(false) }, enabled = !vm.busy) { Text("Back to the normal plan") }
+    }
     if (date == vm.logDay && !vm.restToday && result != null) HeavyDayPanel(vm)
 
     if (result == null) {
@@ -209,5 +211,13 @@ private fun HeavyDayPanel(vm: ChronosViewModel) {
             if (keep !in listOf(20, 40, 60, 80)) Hint(tr("Chosen") + ": $keep%")
             Button(onClick = { vm.runLight(keep) }, enabled = !vm.busy, modifier = Modifier.padding(top = 6.dp)) { Text("Run today like this") }
         }
+        // What used to sit in the Log: the case for rest, the week's load, and taking the whole day off.
+        vm.restVerdict?.takeIf { it.level() != com.chronos.engine.RestAdvisor.Level.NORMAL }?.let { v ->
+            Text(tr(if (v.level() == com.chronos.engine.RestAdvisor.Level.REST) "The signs say rest" else "Worth considering a rest day"),
+                style = MaterialTheme.typography.titleSmall, color = Palette.Brick, modifier = Modifier.padding(top = 10.dp))
+            v.reasons().forEach { Hint("· " + tr(it.why())) }
+        }
+        TextButton(onClick = { vm.chooseRestToday(true) }, enabled = !vm.busy) { Text("Make today a rest day") }
+        WeeklyLoadRow(vm)
     }
 }

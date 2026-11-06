@@ -168,7 +168,10 @@ public class NavProposals {
      * The inbox as it should be: of proposals still waiting that say the same, or that a newer one
      * covers, only the newest stays (for the ones filed before this rule). Returns how many left.
      */
-    public int collapseRepeats() {
+    public int collapseRepeats() { return collapseRepeats(null); }
+
+    /** @param reviewing a proposal open on your screen: it does not leave under your eyes */
+    public int collapseRepeats(String reviewing) {
         List<ProposalRow> waiting = new ArrayList<>();
         for (ProposalRow p : dao.proposals()) if ("PENDING".equals(p.status)) waiting.add(p);
         waiting.sort((a, b) -> Long.compare(b.createdAt, a.createdAt));
@@ -180,7 +183,8 @@ public class NavProposals {
             List<Op> mine = newer.ops == null ? List.of() : GSON.fromJson(newer.ops, new TypeToken<List<Op>>() {}.getType());
             for (int j = i + 1; j < waiting.size(); j++) {
                 ProposalRow older = waiting.get(j);
-                if (out.contains(older.id) || (newer.llmCallId != null && newer.llmCallId.equals(older.llmCallId))) continue;
+                if (out.contains(older.id) || older.id.equals(reviewing)
+                    || (newer.llmCallId != null && newer.llmCallId.equals(older.llmCallId))) continue;
                 List<Op> theirs = older.ops == null ? List.of() : GSON.fromJson(older.ops, new TypeToken<List<Op>>() {}.getType());
                 if (com.chronos.navigator.llm.Repeats.same(mine, theirs) || com.chronos.navigator.llm.Repeats.covers(mine, theirs)) {
                     markOutdated(older.id, "A newer proposal changes the same things; it took its place.");

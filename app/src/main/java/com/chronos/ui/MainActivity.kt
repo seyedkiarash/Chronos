@@ -145,6 +145,8 @@ fun ChronosApp(vm: ChronosViewModel = viewModel(), nav: NavigatorViewModel = vie
             "today" -> { tab = Tab.Navigator; nav.page = NavPage.TODAY; nav.openProposal = null }
             "density" -> { tab = Tab.Navigator; nav.page = NavPage.INBOX; nav.openProposal = null; nav.checkDensity() }
         }
+        // Done once: coming back to the app must not ask it again (it replaced what you were reading, 6 Nov 2026).
+        vm.openTab = null
         vm.openTab = null
     }
     LaunchedEffect(vm.message) {

@@ -224,6 +224,7 @@ public final class DatabaseWiring {
                 }
             }
         }
+        repo.setLiveBaseFile(new java.io.File(context.getApplicationContext().getFilesDir(), "live-base.json"));
         return repo;
     }
 

@@ -49,16 +49,24 @@ internal fun webLink(url: String?): Boolean =
 internal fun InboxPanel(nav: NavigatorViewModel) {
     // Two spaces (your request of 29 Oct 2026): answers to what you asked, and what the app or the model
     // raised by itself — a weekly review, a reading of your log, a trigger — each with its own list.
-    var mine by remember { mutableStateOf(true) }
-    val all = nav.proposals.filter { it.askedByYou() == mine }
-    val pending = all.filter { it.status() == "PENDING" }
-    val past = all.filter { it.status() != "PENDING" }
-    var showPast by remember { mutableStateOf(false) }
+    // And a third (your request of 6 Nov 2026): whatever is finished, decided or replaced, stays findable.
+    var space by remember { mutableIntStateOf(0) }
+    val mine = space == 0
+    val reviewed = nav.proposals.filter { it.status() != "PENDING" }
+    val pending = if (space == 2) emptyList() else nav.proposals.filter { it.askedByYou() == mine && it.status() == "PENDING" }
     Panel("Proposals", Palette.Plum) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
-            Pill(tr("Your questions") + " (" + nav.proposals.count { it.askedByYou() && it.status() == "PENDING" } + ")", mine) { mine = true }
+            Pill(tr("Your questions") + " (" + nav.proposals.count { it.askedByYou() && it.status() == "PENDING" } + ")", space == 0) { space = 0 }
             Spacer(Modifier.width(6.dp))
-            Pill(tr("Raised by the app") + " (" + nav.proposals.count { !it.askedByYou() && it.status() == "PENDING" } + ")", !mine) { mine = false }
+            Pill(tr("Raised by the app") + " (" + nav.proposals.count { !it.askedByYou() && it.status() == "PENDING" } + ")", space == 1) { space = 1 }
+            Spacer(Modifier.width(6.dp))
+            Pill(tr("Reviewed") + " (" + reviewed.size + ")", space == 2) { space = 2 }
+        }
+        if (space == 2) {
+            Hint("Everything already decided or replaced, the latest first, each with what happened to it. Open one to read it; one that was replaced can be put back.")
+            if (reviewed.isEmpty()) Hint("Nothing yet.")
+            reviewed.sortedByDescending { it.createdAt() }.take(60).forEach { InboxRow(nav, it) }
+            return@Panel
         }
         Hint(if (mine) "Answers to what you asked the Navigator — a message, a question about the graph, a conversation on a proposal. " +
                  "Nothing has changed yet: open one to see what it would change and why, and talk it over before you decide."
@@ -74,10 +82,6 @@ internal fun InboxPanel(nav: NavigatorViewModel) {
             }
         }
         RecheckRow(nav, pending.isNotEmpty())
-        if (past.isNotEmpty()) {
-            TextButton(onClick = { showPast = !showPast }) { Text(if (showPast) "Hide past proposals" else "Past proposals") }
-            if (showPast) past.take(40).forEach { InboxRow(nav, it) }
-        }
     }
 }
 

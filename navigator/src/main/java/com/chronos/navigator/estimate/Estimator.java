@@ -100,8 +100,8 @@ public final class Estimator {
      * where r₀ fades your prior at the same rate from the first logged day.
      * Each activity then gets its own Beta, shrunk toward this pooled one as if
      * by adherence.activity_strength days, so a new activity starts from your
-     * overall habit and moves to its own as its days add up. Today is left out
-     * until it is over.
+     * overall habit and moves to its own as its days add up. Today counts as it is
+     * logged: only blocks already logged are in it, so what is still ahead is not a miss.
      */
     static void adherence(Graph g, Inputs in, LocalDate today, long now, List<Param> out) {
         Param prior = g.params.get("adherence");
@@ -111,7 +111,7 @@ public final class Estimator {
         // activity -> day -> {planned minutes, worked minutes}
         Map<String, Map<LocalDate, double[]>> byAct = new TreeMap<>();
         for (Inputs.Session s : in.sessions) {
-            if (!s.goalWork() || !s.date().isBefore(today)) continue;
+            if (!s.goalWork() || s.date().isAfter(today)) continue;
             double[] d = byAct.computeIfAbsent(s.activity(), x -> new TreeMap<>()).computeIfAbsent(s.date(), x -> new double[2]);
             if (s.planned() && s.plannedMin() != null) d[0] += s.plannedMin();
             if (!s.skipped() && s.actualMin() != null) d[1] += Math.max(0, s.actualMin());

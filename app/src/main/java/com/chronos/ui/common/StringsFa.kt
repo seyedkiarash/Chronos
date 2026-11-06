@@ -3772,4 +3772,18 @@ internal val Fa: Map<String, String> = mapOf(
         to "برنامه این را روی آینده‌های شبیه‌سازی‌شده، با و بدون آن، سنجیده. هنوز چیزی تغییر نکرده.",
     "The providers cannot be reached from this network. Turn on a VPN, then send it again."
         to "از این شبکه به سرویس‌ها دسترسی نیست. VPN را روشن کن و دوباره بفرست.",
+    "Reviewed"
+        to "بررسی‌شده‌ها",
+    "Everything already decided or replaced, the latest first, each with what happened to it. Open one to read it; one that was replaced can be put back."
+        to "هر چیزی که تصمیمش گرفته شده یا جایگزین شده، تازه‌ترین اول، با اینکه چه شد. برای خواندن بازش کن؛ موردی که جایگزین شده را می‌توانی برگردانی.",
+    "Nothing yet."
+        to "هنوز چیزی نیست.",
+    "Where each path stands"
+        to "هر مسیر کجاست",
+    "Tap one to see its whole path. On the map, drag sideways: the later goals are further to the right."
+        to "برای دیدن کل مسیر رویش بزن. روی نقشه به پهلو بکش: هدف‌های دیرتر سمت راست‌ترند.",
+    "Tell the model how the day really went: your energy hour by hour, and what happened to each block of the plan. Each entry counts a few seconds after you log it: progress, Setup and the model move at once. Today's plan stays as it is; tomorrow's is rebuilt when the day closes."
+        to "به مدل بگو روز واقعاً چطور گذشت: انرژی ساعت‌به‌ساعت و اینکه با هر بلوک برنامه چه شد. هر ورودی چند ثانیه بعد از ثبت اثر می‌کند: پیشرفت، Setup و مدل همان لحظه به‌روز می‌شوند. برنامهٔ امروز همان می‌ماند؛ برنامهٔ فردا موقع بسته شدن روز از نو ساخته می‌شود.",
+    "Wrapping up writes the day's summary from this conversation: what happened, how you felt, ideas, worries and new limits on your time. It is kept in the journal below, and the crew sees that summary, not the talk. If something should change your plans, it also prepares a message for the Navigator, sent only if you tap it."
+        to "جمع‌بندی از روی همین گفتگو خلاصهٔ روز را می‌نویسد: چه اتفاقی افتاد، چه حسی داشتی، ایده‌ها، نگرانی‌ها و محدودیت‌های تازهٔ وقتت. در دفترچهٔ پایین می‌ماند و گروه مدل‌ها همان خلاصه را می‌بیند، نه خود گفتگو را. اگر چیزی باید برنامه‌هایت را عوض کند، پیامی هم برای ناوبری آماده می‌کند که فقط با زدن دکمه فرستاده می‌شود.",
 )

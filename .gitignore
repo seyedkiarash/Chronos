@@ -20,3 +20,5 @@ keystore.properties
 *.keystore
 # Threat-model working notes are reviewed before anything of them is shared.
 threat-model/
+# Design notes talk about the user's own goals: never in the public snapshots (6 Nov 2026).
+docs/plans/

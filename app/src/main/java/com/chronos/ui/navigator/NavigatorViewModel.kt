@@ -365,7 +365,7 @@ class NavigatorViewModel(private val app: Application) : AndroidViewModel(app) {
         following = store.following()
         nodeActivities = graph?.let { com.chronos.navigator.bridge.Bridge.nodeActivities(it, cfg, store.links()) } ?: emptyMap()
         // One decision per change: what a newer proposal repeats or covers leaves the inbox (29 Oct 2026).
-        inbox.collapseRepeats()
+        inbox.collapseRepeats(openProposal)
         proposals = inbox.proposals()
         syncDiffs = runCatching { com.chronos.navigator.bridge.Sync.diffs(app) }
             .onFailure { android.util.Log.w("Navigator", "sync diffs failed", it) }.getOrElse { emptyList() }

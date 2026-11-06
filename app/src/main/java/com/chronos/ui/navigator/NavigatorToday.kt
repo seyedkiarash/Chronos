@@ -63,6 +63,7 @@ internal fun TodayPanel(nav: NavigatorViewModel) {
                 Text(if (d.signals == null) "Wrap up the day" else "Wrap up again")
             }
         }
+        Hint("Wrapping up writes the day's summary from this conversation: what happened, how you felt, ideas, worries and new limits on your time. It is kept in the journal below, and the crew sees that summary, not the talk. If something should change your plans, it also prepares a message for the Navigator, sent only if you tap it.")
         d.signals?.let { SignalsCard(nav, d) }
     }
     JournalPanel(nav)

@@ -101,7 +101,8 @@ private data class Layout(val spots: List<Spot>, val columns: List<Column>, val 
                           val width: Float, val height: Float, val colW: Float, val left: Float)
 
 private fun labelOf(n: Node, p: Double?): String =
-    n.shortName() + (if (done(n)) " ✓" else p?.takeIf { n.deadline != null }?.let { " " + Math.round(it * 100) + "%" } ?: "")
+    // The figure first: a long name is cut at the edge of the map, and it took the figure with it (6 Nov 2026).
+    (if (done(n)) "✓ " else p?.takeIf { n.deadline != null }?.let { "" + Math.round(it * 100) + "%  " } ?: "") + n.shortName()
 
 @Composable
 internal fun NetworkPanel(nav: NavigatorViewModel, g: Graph) {
@@ -180,6 +181,17 @@ internal fun NetworkPanel(nav: NavigatorViewModel, g: Graph) {
                 Box(Modifier.padding(end = 6.dp, bottom = 4.dp)) { Pill(tr(p.title() ?: p.id()), pathId == p.id()) {
                     pathId = p.id(); selected = null; offset = Offset.Zero } }
             }
+        }
+        // Where each path stands, without moving the map: most goals sit far to the right of it.
+        if (path == null) {
+            Text(tr("Where each path stands"), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 6.dp))
+            paths.filter { it.goal() != null }.forEach { p ->
+                g.node(p.goal())?.let { n ->
+                    Text(tr(p.title() ?: p.id()), style = MaterialTheme.typography.labelSmall, color = Palette.Indigo, modifier = Modifier.padding(top = 4.dp))
+                    TreeRow(nav, n, 0, null) { pathId = p.id(); selected = it }
+                }
+            }
+            Hint("Tap one to see its whole path. On the map, drag sideways: the later goals are further to the right.")
         }
         if (streams.isNotEmpty()) {
             Text(tr("Ongoing"), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 4.dp))

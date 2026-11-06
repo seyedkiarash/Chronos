@@ -98,12 +98,11 @@ fun LogScreen(vm: ChronosViewModel) {
     ScreenHeader(
         "Log",
         "Tell the model how the day really went: your energy hour by hour, and what happened to " +
-        "each block of the plan. Nothing needs applying for today — when the day closes, the model " +
-        "learns from this, and tomorrow's plan is rebuilt and sent to your calendar."
+        "each block of the plan. Each entry counts a few seconds after you log it: progress, Setup and the " +
+        "model move at once. Today's plan stays as it is; tomorrow's is rebuilt when the day closes."
     )
 
     QuickLogPanel(vm)
-    if (!isPast) WellbeingPanel(vm)
     LogDayPicker(vm, day, earliest) { day = it }
     if (isPast) PastDayPanel(vm, day)
     DayHistoryPanel(vm, day)
@@ -120,6 +119,8 @@ fun LogScreen(vm: ChronosViewModel) {
     ActivityPanel(vm, day, bundle != null, noPlan, result?.blocks())
     DayMatchPanel(vm, day, result?.blocks())
     ExtraPanel(vm, day)
+    // What kind of day it was feeds the forecast, so it stays; how you feel is said in the day's conversation now.
+    if (!isPast) Panel { DayTypeRow(vm, day) }
     if (!isPast) NightlyPanel(vm)
     RemindersPanel(vm)
     ExportPanel(vm)
@@ -133,77 +134,6 @@ fun LogScreen(vm: ChronosViewModel) {
  * borderline one offers it; either way the reasons are shown, so the app's
  * judgement can be checked against your own.
  */
-@Composable
-private fun WellbeingPanel(vm: ChronosViewModel) {
-    val today = vm.logDay
-    val morning = vm.logs.firstOrNull { it.id == "morning|$today" }
-    val evening = vm.logs.firstOrNull { it.id == "evening|$today" }
-    val verdict = vm.restVerdict
-    val lang = LocalLang.current
-
-    val accent = when {
-        vm.restToday -> Palette.Moss
-        verdict?.level() == com.chronos.engine.RestAdvisor.Level.REST -> Palette.Brick
-        verdict?.level() == com.chronos.engine.RestAdvisor.Level.CONSIDER -> Palette.Sand
-        else -> Palette.Steel
-    }
-    Panel("How are you today?", accent) {
-        if (vm.restToday) {
-            Text("Today is a rest day.", style = MaterialTheme.typography.titleMedium, color = Palette.Moss)
-            Hint("Goal work is paused; upkeep and your rest activities are planned. Tomorrow morning's " +
-                 "check-in decides whether to come back, and the return is gradual — deadlines are " +
-                 "caught up over the next days, not all at once.")
-            Spacer(Modifier.height(6.dp))
-            OutlinedButton(onClick = { vm.chooseRestToday(false) }, enabled = !vm.busy) {
-                Text("Back to the normal plan")
-            }
-            Spacer(Modifier.height(10.dp))
-            HorizontalDivider()
-        }
-
-        CheckinBox(vm, "morning", "Morning", morning,
-            com.chronos.engine.RestAdvisor.SEVERE + com.chronos.engine.RestAdvisor.MILD, withHeavy = false)
-
-        verdict?.let { v ->
-            Spacer(Modifier.height(8.dp))
-            val title = when (v.level()) {
-                com.chronos.engine.RestAdvisor.Level.REST -> "The signs say rest"
-                com.chronos.engine.RestAdvisor.Level.CONSIDER -> "Worth considering a rest day"
-                else -> "Nothing says you need to stop"
-            }
-            Text(title, style = MaterialTheme.typography.titleMedium, color = accent)
-            v.reasons().forEach { r ->
-                Text("· " + translate(lang, r.why()), style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (!vm.restToday && v.level() != com.chronos.engine.RestAdvisor.Level.NORMAL) {
-                Spacer(Modifier.height(6.dp))
-                Button(onClick = { vm.chooseRestToday(true) }, enabled = !vm.busy) { Text("Make today a rest day") }
-            }
-        }
-        if (!vm.restToday && verdict?.level() != com.chronos.engine.RestAdvisor.Level.CONSIDER &&
-            verdict?.level() != com.chronos.engine.RestAdvisor.Level.REST) {
-            TextButton(onClick = { vm.chooseRestToday(true) }, enabled = !vm.busy) {
-                Text("I need a rest day anyway")
-            }
-        }
-
-        Spacer(Modifier.height(10.dp))
-        HorizontalDivider()
-        WeeklyLoadRow(vm)
-
-        Spacer(Modifier.height(10.dp))
-        HorizontalDivider()
-        CheckinBox(vm, "evening", "Evening", evening, com.chronos.engine.RestAdvisor.EVENING_SIGNS,
-            withHeavy = true)
-        DayTypeRow(vm, today)
-
-        Spacer(Modifier.height(6.dp))
-        Toggle("Switch to rest by itself when the signs are clear", vm.autoRest,
-            "Off, it only suggests. Either way you can take the day back.") { vm.autoRest = it }
-    }
-}
-
 /**
  * The one field the Navigator adds to the check-in: what kind of day this
  * was. The Navigator's suggestion is shown ticked until you choose; a tap
@@ -234,7 +164,7 @@ private fun DayTypeRow(vm: ChronosViewModel, day: LocalDate) {
 
 /**
  * A past day's own status: its check-ins, what kind of day it was, and whether
- * the model should learn from it at all. Today's live in "How are you today?".
+ * the model should learn from it at all. Today's: how you feel is in the day's conversation.
  */
 @Composable
 private fun PastDayPanel(vm: ChronosViewModel, day: LocalDate) {
@@ -313,7 +243,7 @@ private fun CheckinBox(vm: ChronosViewModel, kind: String, title: String, saved:
 }
 
 @Composable
-private fun WeeklyLoadRow(vm: ChronosViewModel) {
+internal fun WeeklyLoadRow(vm: ChronosViewModel) {
     val w = vm.weekly ?: return
     Text("This week's load", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 6.dp))
     val ratio = w.ratio()

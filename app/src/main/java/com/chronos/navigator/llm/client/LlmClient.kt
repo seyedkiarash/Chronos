@@ -335,7 +335,8 @@ object LlmClient {
                 val e = if (o.isJsonArray) o.asJsonArray[0].asJsonObject.get("error") else o.asJsonObject.get("error")
                 if (e != null && e.isJsonObject) e.asJsonObject.get("message")?.asString else e?.asString
             }.getOrNull()
-            val reason = why ?: body.trim().take(200).takeIf { it.isNotEmpty() }
+            // A block page is a web page: its markup says nothing the code above has not said.
+            val reason = why ?: body.trim().takeIf { it.isNotEmpty() && !it.startsWith("<") }?.take(200)
             val hint = when (code) {
                 401 -> " (the key is refused)"
                 403 -> " (the key is refused, or this service is not available on this network: try a VPN)"
