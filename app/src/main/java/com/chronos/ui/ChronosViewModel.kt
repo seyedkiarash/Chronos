@@ -350,7 +350,7 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
                   else "Back to the normal plan for today."
     }
 
-    // ---------------------------------------------------------- a heavy day (7 Nov 2026)
+    // ---------------------------------------------------------- a heavy day (6 Nov 2026)
 
     /** The share of today kept, when you chose to run it lighter; null on a normal day. */
     var lightToday by mutableStateOf<Int?>(null); private set

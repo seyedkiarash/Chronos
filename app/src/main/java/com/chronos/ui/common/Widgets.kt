@@ -37,7 +37,7 @@ import java.time.LocalDate
 
 /* Small pieces shared by every screen. Nothing here knows about the model. */
 
-/** Inside the Navigator, panels are sections with a coloured header (7 Nov 2026). */
+/** Inside the Navigator, panels are sections with a coloured header (6 Nov 2026). */
 val LocalSectionHeaders = staticCompositionLocalOf { false }
 
 /**

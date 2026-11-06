@@ -194,7 +194,7 @@ fun ChronosApp(vm: ChronosViewModel = viewModel(), nav: NavigatorViewModel = vie
             }
         }
     ) {
-    // The Navigator on a plain white page, its sections told apart by coloured headers (your request of 7 Nov 2026).
+    // The Navigator on a plain white page, its sections told apart by coloured headers (your request of 6 Nov 2026).
     val onNavigator = tab == Tab.Navigator
     val page = MaterialTheme.colorScheme.background.let { b -> if (onNavigator && b.luminance() > 0.5f) androidx.compose.ui.graphics.Color.White else b }
     Scaffold(

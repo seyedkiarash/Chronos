@@ -485,7 +485,7 @@ class NavigatorViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun openIdeaChat(job: com.chronos.navigator.llm.client.CrewRun.Job) { job.chatId?.let { openChat(it) } }
 
-    // ------------------------------------------------- more work than time (7 Nov 2026)
+    // ------------------------------------------------- more work than time (6 Nov 2026)
 
     var checkingDensity by mutableStateOf(false); private set
 

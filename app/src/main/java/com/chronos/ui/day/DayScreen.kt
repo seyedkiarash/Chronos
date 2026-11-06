@@ -173,7 +173,7 @@ private fun LegendDot(label: String, color: androidx.compose.ui.graphics.Color) 
 }
 
 /**
- * A day that turned heavy (your idea of 7 Nov 2026): you say how heavy, the app suggests how much to
+ * A day that turned heavy (your idea of 6 Nov 2026): you say how heavy, the app suggests how much to
  * keep from that and what the log shows, you choose. What is due stays first; the rest moves on.
  */
 @Composable

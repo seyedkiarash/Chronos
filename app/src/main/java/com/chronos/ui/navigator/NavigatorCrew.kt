@@ -84,7 +84,7 @@ internal fun CrewPanel(nav: NavigatorViewModel, compact: Boolean = false) {
         // Each question its own conversation (your request of 28 Oct 2026): which one is open, a new one, the others.
         val open = nav.chats.firstOrNull { it.id == nav.chatId }
         val idle = open != null && !open.fromApp && System.currentTimeMillis() - open.lastAt > 12 * 3_600_000L
-        // On the home, always a new empty conversation (your request of 7 Nov 2026); the earlier ones one tap away.
+        // On the home, always a new empty conversation (your request of 6 Nov 2026); the earlier ones one tap away.
         if (compact) {
             val working = nav.jobs.count { it.status == "RUNNING" }
             if (working > 0) TextButton(onClick = { nav.page = NavPage.CHAT }) { Text(tr("The Navigator is working on your message") + " ›") }
@@ -432,7 +432,7 @@ private fun PathEffects(byPath: Map<String?, List<JsonObject>>) {
 @Composable
 internal fun CrewDetails(p: NavProposals.View, g: com.chronos.navigator.model.Graph?) {
     val crew = p.crew() ?: return
-    // the odds, path by path, so you can see what each main path gains or pays (your request of 7 Nov 2026)
+    // the odds, path by path, so you can see what each main path gains or pays (your request of 6 Nov 2026)
     val odds = crew.arr("odds")
     val breaches = odds.count { it.asJsonObject.get("breaks_floor")?.asBoolean == true }
     val paths = remember(g) { g?.let { com.chronos.navigator.model.Paths.of(it) } ?: emptyList() }

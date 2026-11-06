@@ -198,7 +198,7 @@ public class ChronosRepository {
         return out;
     }
 
-    /** Days you chose to run lighter (7 Nov 2026), with the share of a normal day kept, in percent. Kept beside the rest days. */
+    /** Days you chose to run lighter (6 Nov 2026), with the share of a normal day kept, in percent. Kept beside the rest days. */
     public java.util.TreeMap<LocalDate, Integer> lightDays() {
         java.util.TreeMap<LocalDate, Integer> out = new java.util.TreeMap<>();
         AppStateRow r = stateDao.get();

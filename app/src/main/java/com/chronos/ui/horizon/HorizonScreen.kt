@@ -95,7 +95,7 @@ fun HorizonScreen(vm: ChronosViewModel) {
         TextButton(onClick = { vm.openTab = "priorities" }) { Text(tr("Check them") + " ›") }
     }
 
-    // Deadlines not on track: what could give way is a choice, offered knowingly (7 Nov 2026).
+    // Deadlines not on track: what could give way is a choice, offered knowingly (6 Nov 2026).
     if (bundle != null) Column(Modifier.fillMaxWidth().padding(top = 4.dp)) {
         Hint("Too much for the time you have? The Navigator can weigh every deadline and propose what could give way.")
         TextButton(onClick = { vm.openTab = "density" }) { Text(tr("What could give way") + " ›") }

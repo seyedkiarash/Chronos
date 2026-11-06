@@ -310,7 +310,7 @@ object CrewRun {
 
     /** A job on the same words still running, or started in the last ten minutes: sending it twice asks once. */
     private fun same(context: Context, kind: String, message: String): Job? =
-        // Not one that failed: sending that again must really send it (it vanished before, 7 Nov 2026).
+        // Not one that failed: sending that again must really send it (it vanished before, 6 Nov 2026).
         jobs(context).firstOrNull { it.kind == kind && it.message?.trim() == message.trim() && it.status != "FAILED" &&
             (it.status == "RUNNING" || System.currentTimeMillis() - it.createdAt < 10 * 60_000L) }
 
@@ -455,7 +455,7 @@ object CrewRun {
     }
 
     /**
-     * More work than the hours hold (7 Nov 2026): every deadline, near and far, against the expected hours;
+     * More work than the hours hold (6 Nov 2026): every deadline, near and far, against the expected hours;
      * then what could give way, the least important first, each with what it would do to the rest, measured
      * here and in a package for you to approve piece by piece. No model is needed. Null when everything fits.
      */

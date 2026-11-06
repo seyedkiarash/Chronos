@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * How much of a heavy day to keep (your idea of 7 Nov 2026): not all of it and not nothing. You say how
+ * How much of a heavy day to keep (your idea of 6 Nov 2026): not all of it and not nothing. You say how
  * heavy the day is; what the log shows moves that a little; and what is due in the next days keeps its
  * time unless you say the day is very heavy. The plan then fills the smaller day with deadlines first,
  * so what gives way is the work with no date. The app suggests; you choose.

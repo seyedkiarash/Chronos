@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Whether what you have set out to do fits the time you have (your point of 7 Nov 2026): priorities
+ * Whether what you have set out to do fits the time you have (your point of 6 Nov 2026): priorities
  * decide where work goes, but when the work is too dense for the hours, something has to give, and
  * that should be your choice, offered knowingly. Every deadline counts, however far: each is checked
  * against the expected goal hours up to it, earliest first, after the standing hours. Where the work

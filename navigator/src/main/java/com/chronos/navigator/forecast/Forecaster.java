@@ -301,7 +301,7 @@ public final class Forecaster {
                 // Standing hours that must hold (the courses) come back after a day that had no room for them.
                 if (m.stream[i] && m.nodes[i].hard)
                     want += Math.max(0, m.floorOn(i, day) * day - streamHours[i]) / 7 * len;
-                // On a heavy day what has a firm date gets the time it can, and work with room to wait waits (your answer of 7 Nov 2026).
+                // On a heavy day what has a firm date gets the time it can, and work with room to wait waits (your answer of 6 Nov 2026).
                 if (!firm(i)) want *= 1 - stressShare;
                 want = Math.min(want, m.capPerDay[i] * len);
                 if (!m.stream[i]) want = Math.min(want, left(i));
