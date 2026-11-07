@@ -61,7 +61,8 @@ object Companion {
         val repo = DatabaseWiring.repository(context)
         val cfg = repo.loadConfig()
         val logs = repo.logs().filter { it.date == day }
-        val sessions = logs.filter { it.kind == Enums.LogKind.SESSION && (it.actual ?: 0) > 0 }
+        // Goal work only: breakfast is not work (7 Nov 2026).
+        val sessions = logs.filter { it.kind == Enums.LogKind.SESSION && (it.actual ?: 0) > 0 && cfg.activity(it.actId)?.goalId != null }
         val byAct = sessions.groupBy { cfg.activity(it.actId)?.name ?: "?" }
             .mapValues { (_, ls) -> ls.sumOf { it.actual ?: 0 } / 60.0 }.toList().sortedByDescending { it.second }
         val energy = logs.filter { it.kind == Enums.LogKind.CHECKIN && it.id.startsWith("energy|") }.mapNotNull { it.energy }
@@ -90,7 +91,8 @@ object Companion {
     fun opening(context: Context, day: LocalDate): String {
         val repo = DatabaseWiring.repository(context)
         val cfg = repo.loadConfig()
-        val sessions = repo.logs().filter { it.date == day && it.kind == Enums.LogKind.SESSION && (it.actual ?: 0) > 0 }
+        val sessions = repo.logs().filter { it.date == day && it.kind == Enums.LogKind.SESSION && (it.actual ?: 0) > 0 &&
+            cfg.activity(it.actId)?.goalId != null }
         val hours = sessions.sumOf { it.actual ?: 0 } / 60.0
         val top = sessions.groupBy { cfg.activity(it.actId)?.name ?: "" }.mapValues { (_, l) -> l.sumOf { it.actual ?: 0 } }
             .entries.sortedByDescending { it.value }.take(3).map { it.key }.filter { it.isNotBlank() }
@@ -182,7 +184,8 @@ object Companion {
     /** Opens the day's conversation with the app's own first words, once. */
     fun open(context: Context, day: LocalDate): Day {
         val d = read(context, day)
-        if (d.turns.isNotEmpty()) return d
+        // Until you have said something, the first words follow the day as it fills.
+        if (d.turns.any { it.who != "model" } || d.turns.size > 1) return d
         return d.copy(turns = listOf(Turn("model", opening(context, day), System.currentTimeMillis()))).also { write(context, it) }
     }
 

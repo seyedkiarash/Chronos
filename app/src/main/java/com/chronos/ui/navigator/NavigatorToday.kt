@@ -146,7 +146,7 @@ private fun SignalsCard(nav: NavigatorViewModel, d: Companion.Day) {
 private fun JournalPanel(nav: NavigatorViewModel) {
     val past = nav.journal.filter { it.date != nav.today?.date && (it.signals != null || it.turns.any { t -> t.who == "you" }) }
     if (past.isEmpty()) return
-    Folded("Journal", tr("{} days").replace("{}", past.size.toString()), Palette.Teal, "journal") {
+    Folded("Journal", if (past.size == 1) tr("1 day") else tr("{} days").replace("{}", past.size.toString()), Palette.Teal, "journal") {
         past.forEach { d ->
             var open by remember(d.date) { mutableStateOf(false) }
             Column(Modifier.fillMaxWidth().clickable { open = !open }.padding(vertical = 6.dp)) {
