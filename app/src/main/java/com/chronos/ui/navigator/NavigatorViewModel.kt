@@ -583,7 +583,10 @@ class NavigatorViewModel(private val app: Application) : AndroidViewModel(app) {
         today = com.chronos.navigator.llm.client.Companion.setMood(app, day(), mood, stress)
     }
 
-    fun wrapToday() = talk { com.chronos.navigator.llm.client.Companion.wrap(app, day()) }
+    fun wrapToday(mood: Int? = null, stress: Int? = null) = talk {
+        if (mood != null || stress != null) com.chronos.navigator.llm.client.Companion.setMood(app, day(), mood, stress)
+        com.chronos.navigator.llm.client.Companion.wrap(app, day())
+    }
 
     /** The day's message for the Navigator, sent as if you had written it (you read it first on the page). */
     fun sendToNavigator(text: String) {

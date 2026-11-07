@@ -10,7 +10,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.app.RemoteInput
 import androidx.core.content.ContextCompat
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -28,8 +27,7 @@ import java.util.concurrent.TimeUnit
  * Asking how it is going when the log has gone quiet (your request of 20 Oct 2026):
  * at the times you set, and whenever several waking hours pass with nothing
  * logged — never while you sleep or sit in a class. The notification opens the
- * Log, or takes a one-line answer that the model turns into log entries for you
- * to confirm ([QuickLog]).
+ * Log (the one-line answer went on 7 Nov 2026: the Navigator's conversation does that).
  */
 object Reminders {
     const val CHANNEL = "chronos-reminders"
@@ -184,12 +182,6 @@ object Reminders {
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setContentIntent(openLog(context)).setAutoCancel(true)
             .addAction(0, if (fa) "باز کردن لاگ" else "Open the log", openLog(context))
-        val input = RemoteInput.Builder(REPLY_KEY)
-            .setLabel(if (fa) "مثلاً: ۱۰ تا ۱۲ فصل ۳ را خواندم، خسته‌ام" else "e.g. read chapter 3 from 10 to 12, tired").build()
-        val reply = PendingIntent.getBroadcast(context, 2, Intent(context, QuickReplyReceiver::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE)
-        b.addAction(NotificationCompat.Action.Builder(0, if (fa) "پاسخ کوتاه" else "Quick answer", reply)
-            .addRemoteInput(input).setAllowGeneratedReplies(false).build())
         if (allowed(context)) runCatching { NotificationManagerCompat.from(context).notify(NOTIFY_ID, b.build()) }
     }
 

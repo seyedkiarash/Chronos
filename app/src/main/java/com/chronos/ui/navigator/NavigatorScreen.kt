@@ -39,7 +39,7 @@ import java.time.ZoneId
  * imported graph, what it still lacks, and the forms that fill those gaps.
  */
 @Composable
-fun NavigatorScreen(nav: NavigatorViewModel) {
+fun NavigatorScreen(nav: NavigatorViewModel, vm: com.chronos.ui.ChronosViewModel) {
     LaunchedEffect(Unit) { nav.refresh() }
     nav.openProposal?.let { if (!nav.loading) { ProposalPage(nav, it); return } }
     if (nav.loading) return
@@ -50,7 +50,7 @@ fun NavigatorScreen(nav: NavigatorViewModel) {
     PageTop(nav, page)
     val g = nav.graph
     when (page) {
-        NavPage.TODAY -> TodayPanel(nav)
+        NavPage.TODAY -> TodayPanel(nav, vm)
         NavPage.CHAT -> CrewPanel(nav, compact = false)
         NavPage.CHATS -> ChatsPanel(nav)
         NavPage.INBOX -> { InboxPanel(nav); if (nav.proposals.isEmpty()) Hint("Nothing has been proposed yet.") }

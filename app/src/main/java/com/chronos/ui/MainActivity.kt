@@ -244,7 +244,7 @@ fun ChronosApp(vm: ChronosViewModel = viewModel(), nav: NavigatorViewModel = vie
                 Tab.Priorities -> WeightsScreen(vm)
                 Tab.Setup -> SetupScreen(vm) { tab = Tab.Priorities }
                 Tab.Log -> LogScreen(vm)
-                Tab.Navigator -> CompositionLocalProvider(LocalSectionHeaders provides true) { NavigatorScreen(nav) }
+                Tab.Navigator -> CompositionLocalProvider(LocalSectionHeaders provides true) { NavigatorScreen(nav, vm) }
             }
             Spacer(Modifier.height(32.dp))
         }

@@ -102,7 +102,6 @@ fun LogScreen(vm: ChronosViewModel) {
         "model move at once. Today's plan stays as it is; tomorrow's is rebuilt when the day closes."
     )
 
-    QuickLogPanel(vm)
     LogDayPicker(vm, day, earliest) { day = it }
     if (isPast) PastDayPanel(vm, day)
     DayHistoryPanel(vm, day)
@@ -183,7 +182,7 @@ private fun PastDayPanel(vm: ChronosViewModel, day: LocalDate) {
 }
 
 @Composable
-private fun CheckinBox(vm: ChronosViewModel, kind: String, title: String, saved: LogEntry?,
+internal fun CheckinBox(vm: ChronosViewModel, kind: String, title: String, saved: LogEntry?,
                        signs: List<String>, withHeavy: Boolean, day: LocalDate? = null) {
     var energy by remember(saved?.ts) { mutableStateOf(saved?.energy) }
     var heavyMind by remember(saved?.ts) { mutableStateOf(saved?.mentalAfter ?: saved?.fatigueAfter) }

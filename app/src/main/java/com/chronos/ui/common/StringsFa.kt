@@ -3786,4 +3786,6 @@ internal val Fa: Map<String, String> = mapOf(
         to "به مدل بگو روز واقعاً چطور گذشت: انرژی ساعت‌به‌ساعت و اینکه با هر بلوک برنامه چه شد. هر ورودی چند ثانیه بعد از ثبت اثر می‌کند: پیشرفت، Setup و مدل همان لحظه به‌روز می‌شوند. برنامهٔ امروز همان می‌ماند؛ برنامهٔ فردا موقع بسته شدن روز از نو ساخته می‌شود.",
     "Wrapping up writes the day's summary from this conversation: what happened, how you felt, ideas, worries and new limits on your time. It is kept in the journal below, and the crew sees that summary, not the talk. If something should change your plans, it also prepares a message for the Navigator, sent only if you tap it."
         to "جمع‌بندی از روی همین گفتگو خلاصهٔ روز را می‌نویسد: چه اتفاقی افتاد، چه حسی داشتی، ایده‌ها، نگرانی‌ها و محدودیت‌های تازهٔ وقتت. در دفترچهٔ پایین می‌ماند و گروه مدل‌ها همان خلاصه را می‌بیند، نه خود گفتگو را. اگر چیزی باید برنامه‌هایت را عوض کند، پیامی هم برای ناوبری آماده می‌کند که فقط با زدن دکمه فرستاده می‌شود.",
+    "Your energy (1 low · 5 high) and how heavy the day was: they tell the rest advice and the body-clock fit, and the wrap-up carries them."
+        to "انرژی‌ات (۱ کم · ۵ زیاد) و اینکه روز چقدر سنگین بود: روی پیشنهاد استراحت و یادگیری ساعت بدن اثر دارند و در جمع‌بندی روز هم می‌آیند.",
 )

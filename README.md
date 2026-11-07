@@ -21,20 +21,27 @@ The interface is in English and Persian (right to left, Jalali dates).
   a weekly allocation of hours, and proposals from the app's own rules or from an LLM that you
   approve or reject one change at a time.
 
-A full guide for new users, in Persian, is in [`docs/`](docs/).
+A full guide for new users is in [`docs/`](docs/): in Persian ([USER_GUIDE.fa.md](docs/USER_GUIDE.fa.md),
+also as a PDF) and a shorter one in English ([USER_GUIDE.en.md](docs/USER_GUIDE.en.md)).
+
+## Editions
+
+The same code builds two apps. **Chronos Planner** (`./gradlew :app:assemblePublicRelease`) is the
+one to share: it starts empty, every goal graph is the user's own, and nothing is sent to a model
+until the user turns it on. The personal edition keeps the author's own defaults.
 
 ## Building
 
 Android Studio (AGP 9) with JDK 17 or newer.
 
 ```bash
-./gradlew :app:assembleDebug
+./gradlew :app:assemblePublicDebug
 ```
 
 Tests (the planning engine and the Navigator are plain Java and run on the JVM):
 
 ```bash
-./gradlew :app:testDebugUnitTest :navigator:test
+./gradlew :app:testPublicDebugUnitTest :navigator:test
 ```
 
 ## Layout

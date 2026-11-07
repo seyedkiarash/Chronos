@@ -19,7 +19,7 @@ import com.chronos.navigator.llm.client.Companion
  */
 
 @Composable
-internal fun TodayPanel(nav: NavigatorViewModel) {
+internal fun TodayPanel(nav: NavigatorViewModel, vm: com.chronos.ui.ChronosViewModel) {
     LaunchedEffect(Unit) { nav.openToday() }
     val d = nav.today
     Panel(null, Palette.Teal) {
@@ -50,16 +50,18 @@ internal fun TodayPanel(nav: NavigatorViewModel) {
             placeholder = { Text(tr("Write as you would to a friend…"), style = MaterialTheme.typography.bodySmall) },
             trailingIcon = { SendIcon(draft.isNotBlank() && !nav.talking) { send() } })
 
-        // How the day was, in two numbers you set yourself.
-        Text(tr("How you felt today"), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 8.dp))
-        ScaleRow(d.mood) { nav.setMood(if (d.mood == it) null else it, d.stress) }
-        Hint("1 very low · 5 very good")
-        Text(tr("How much pressure"), style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 4.dp))
-        ScaleRow(d.stress) { nav.setMood(d.mood, if (d.stress == it) null else it) }
-        Hint("1 calm · 5 heavy")
+        // How the day was, in numbers: the morning and evening checks (moved here from the Log, 7 Nov 2026).
+        val today = vm.logDay
+        val morning = vm.logs.firstOrNull { it.id == "morning|$today" }
+        val evening = vm.logs.firstOrNull { it.id == "evening|$today" }
+        com.chronos.ui.log.CheckinBox(vm, "morning", "Morning", morning,
+            com.chronos.engine.RestAdvisor.SEVERE + com.chronos.engine.RestAdvisor.MILD, withHeavy = false)
+        com.chronos.ui.log.CheckinBox(vm, "evening", "Evening", evening, com.chronos.engine.RestAdvisor.EVENING_SIGNS, withHeavy = true)
+        Hint("Your energy (1 low · 5 high) and how heavy the day was: they tell the rest advice and the body-clock fit, and the wrap-up carries them.")
 
         Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = { nav.wrapToday() }, enabled = !nav.talking && d.turns.any { it.who == "you" }) {
+            // The evening check is the day's mood and pressure in the summary.
+            Button(onClick = { nav.wrapToday(evening?.energy ?: morning?.energy, evening?.mentalAfter ?: evening?.fatigueAfter) }, enabled = !nav.talking && d.turns.any { it.who == "you" }) {
                 Text(if (d.signals == null) "Wrap up the day" else "Wrap up again")
             }
         }

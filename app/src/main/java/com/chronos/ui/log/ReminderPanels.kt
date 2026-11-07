@@ -101,8 +101,7 @@ internal fun RemindersPanel(vm: ChronosViewModel) {
     }
     Panel("Log reminders") {
         Hint("At the times below, and whenever several waking hours pass with nothing logged, a notification asks how " +
-             "it is going — never while you sleep or are in a class. Answer it in one line and the model turns it into " +
-             "entries for you to keep, or open the Log.")
+             "it is going — never while you sleep or are in a class. It opens the Log.")
         Toggle("Remind me", vm.remindersOn && vm.notificationsAllowed,
             if (!vm.notificationsAllowed && vm.remindersOn) "Notifications are blocked for Chronos: allow them to get reminders." else null) { on ->
             if (on && !vm.notificationsAllowed && Build.VERSION.SDK_INT >= 33) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -122,15 +121,8 @@ internal fun RemindersPanel(vm: ChronosViewModel) {
         val never = tr("never"); val h = tr("h")
         LevelSlider("Ask after this long with nothing logged", if (gap <= 0) 0.0 else gap, 0.0..6.0, 0.5, "never", "6 h",
             Palette.Steel, format = { if (it <= 0) never else trimNumber(it) + " " + h }) { v -> vm.changeReminderGap(v) }
-        Toggle("Let the model read my quick answers", vm.reminderViaModel,
-            "One call each, from the provider and budget in the Navigator's LLM settings. Off: the answer is only kept for you to fill in.") {
-            vm.changeReminderViaModel(it)
-        }
-        var line by remember { mutableStateOf("") }
-        OutlinedTextField(value = line, onValueChange = { line = it }, modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(tr("Or write it here: what you did and how you feel"), style = MaterialTheme.typography.bodySmall) })
+        // The quick answers went (your request of 7 Nov 2026): the Navigator's own conversation does that work.
         Row {
-            TextButton(onClick = { val t = line.trim(); line = ""; vm.quickAnswer(t) }, enabled = line.isNotBlank() && !vm.busy) { Text("Send") }
             Spacer(Modifier.weight(1f))
             TextButton(onClick = { vm.testReminder() }, enabled = !vm.busy && vm.notificationsAllowed) { Text("Try a reminder now") }
         }
