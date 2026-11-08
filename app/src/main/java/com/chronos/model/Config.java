@@ -42,6 +42,7 @@ public class Config {
         c.goals = goals;
         c.commitments = commitments;
         c.planFrom = planFrom;
+        c.goalCapH = goalCapH;
         int dow = date == null ? -1 : com.chronos.engine.Slots.dow(date);
         for (Activity a : activities) {
             if (!a.startedBy(date) || a.archived) continue;
@@ -68,6 +69,12 @@ public class Config {
      * repository fills it in from the app's state.
      */
     public java.time.LocalDateTime planFrom;
+
+    /**
+     * The most goal work planned on one day, learned from your log (engine.GoalCap); null: no cap.
+     * Like planFrom, not part of the stored configuration: the repository fills it in.
+     */
+    public Double goalCapH;
 
     /**
      * Whether an activity's time is over on a day (26 Oct 2026): upkeep past its last day, goal work
@@ -146,6 +153,7 @@ public class Config {
         for (Activity a : activities) c.activities.add(a.copy());
         for (Commitment m : commitments) c.commitments.add(m.copy());
         c.planFrom = planFrom;
+        c.goalCapH = goalCapH;
         return c;
     }
 }

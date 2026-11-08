@@ -69,6 +69,7 @@ public final class Daos {
     @Dao
     public interface PlanDao {
         @Query("SELECT * FROM snapshots ORDER BY createdAt DESC LIMIT 1") SnapshotRow latest();
+        @Query("UPDATE snapshots SET configHash = :hash WHERE id = :id") void restamp(long id, String hash);
         @Insert(onConflict = OnConflictStrategy.REPLACE) long put(SnapshotRow row);
         @Query("DELETE FROM snapshots WHERE id NOT IN "
              + "(SELECT id FROM snapshots ORDER BY createdAt DESC LIMIT :keep)")

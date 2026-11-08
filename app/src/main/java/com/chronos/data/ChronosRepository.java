@@ -3,6 +3,7 @@ package com.chronos.data;
 import com.chronos.data.dao.Daos;
 import com.chronos.data.entity.Entities.*;
 import com.chronos.engine.Calibrator;
+import com.chronos.engine.GoalCap;
 import com.chronos.engine.DaySequencer;
 import com.chronos.engine.Energy;
 import com.chronos.engine.Feasibility;
@@ -102,7 +103,45 @@ public class ChronosRepository {
         for (com.chronos.model.Goal g : cfg.goals) if (g.tier == null) { unplaced = true; break; }
         if (unplaced) synchronized (this) { saveConfig(cfg); }
         cfg.planFrom = planFrom();
+        GoalCap.Cap cap = goalCapOn() ? goalCap() : null;
+        cfg.goalCapH = cap == null ? null : cap.capH();
         return cfg;
+    }
+
+    // ------------------------------------------------- a plan no bigger than you (8 Nov 2026)
+
+    private static final String GOAL_CAP_OFF = "bridge.goal_cap_off";
+    private GoalCap.Cap capCache;
+    private LocalDate capDay;
+
+    /** What your good days held over the last four weeks, and the cap from it; null with too few logged days. */
+    public synchronized GoalCap.Cap goalCap() {
+        LocalDate day = logicalToday();
+        if (!day.equals(capDay)) {
+            java.util.Set<LocalDate> skip = new java.util.HashSet<>(unusualDays());
+            skip.addAll(restDays());
+            capCache = GoalCap.of(Mappers.toConfig(configDao.params(), configDao.goals(),
+                configDao.activities(), configDao.commitments()), logs(), day, skip);
+            capDay = day;
+        }
+        return capCache;
+    }
+
+    /** On unless you turned it off. */
+    public boolean goalCapOn() {
+        return navDao.param(GOAL_CAP_OFF) == null;
+    }
+
+    public void setGoalCapOn(boolean on) {
+        if (on) { navDao.dropParam(GOAL_CAP_OFF); return; }
+        com.chronos.navigator.store.NavEntities.ParamRow r = new com.chronos.navigator.store.NavEntities.ParamRow();
+        r.key = GOAL_CAP_OFF;
+        r.dist = "POINT";
+        r.vals = "{\"value\":1}";
+        r.source = "USER";
+        r.note = "You chose to plan goal work beyond what your good days held.";
+        r.updatedAt = System.currentTimeMillis();
+        navDao.putParam(r);
     }
 
     /** The moment the plan was built from, when an hour was given; null for the whole first day. */
@@ -1040,6 +1079,10 @@ public class ChronosRepository {
      */
     public List<Calibrator.Change> learnLive(Config cfg) {
         LocalDate day = state().today();
+        // What the log teaches is not a setting you changed (8 Nov 2026): a plan that matched before
+        // still matches after, instead of saying "no longer matches your settings" after every entry.
+        SnapshotRow plan = planDao.latest();
+        boolean matched = plan != null && Mappers.configHash(cfg).equals(plan.configHash);
         LiveBase base = readLiveBase();
         if (base == null || !day.toString().equals(base.day)) writeLiveBase(cfg, day);
         else restoreLiveBase(cfg, day);
@@ -1049,6 +1092,7 @@ public class ChronosRepository {
         for (LogEntry l : all) if (day.equals(l.date)) step.add(l);
         if (!step.isEmpty() && Readiness.canSolve(readiness(cfg))) report.addAll(learnFromDay(cfg, all, step));
         saveConfig(cfg);
+        if (matched) planDao.restamp(plan.id, Mappers.configHash(cfg));
         return report;
     }
 
@@ -1186,7 +1230,7 @@ public class ChronosRepository {
      */
     private List<Calibrator.Change> learnFromDay(Config cfg, List<LogEntry> all, List<LogEntry> ofDay) {
         Calibrator.Outcome whole = Calibrator.calibrate(cfg.copy(), all);
-        Calibrator.Outcome step = Calibrator.calibrate(cfg.copy(), ofDay);
+        Calibrator.Outcome step = Calibrator.calibrate(cfg.copy(), ofDay, Calibrator.seen(before(all, ofDay)));
 
         java.util.Set<String> activityNames = new java.util.HashSet<>();
         for (Activity a : cfg.activities) if (a.name != null) activityNames.add(a.name);
@@ -1208,6 +1252,16 @@ public class ChronosRepository {
             if (!activityNames.contains(c.subject()) && !c.detail().startsWith("fatigue load")) out.add(c);
         for (Calibrator.Change c : step.report())
             if (activityNames.contains(c.subject()) || c.detail().startsWith("fatigue load")) out.add(c);
+        return out;
+    }
+
+    /** The entries of the days before the day being learned: how much each thing has been learned from already. */
+    private static List<LogEntry> before(List<LogEntry> all, List<LogEntry> ofDay) {
+        LocalDate first = null;
+        for (LogEntry l : ofDay) if (l.date != null && (first == null || l.date.isBefore(first))) first = l.date;
+        List<LogEntry> out = new ArrayList<>();
+        if (first == null) return out;
+        for (LogEntry l : all) if (l.date != null && l.date.isBefore(first)) out.add(l);
         return out;
     }
 
@@ -1297,7 +1351,9 @@ public class ChronosRepository {
             List<LogEntry> ofDay = new ArrayList<>();
             for (LogEntry l : all) if (d.equals(l.date)) ofDay.add(l);
             if (ofDay.isEmpty()) continue;
-            Calibrator.Outcome step = Calibrator.calibrate(c.copy(), ofDay);
+            List<LogEntry> earlier = new ArrayList<>();
+            for (LogEntry l : all) if (l.date != null && l.date.isBefore(d) && !skip.contains(l.date)) earlier.add(l);
+            Calibrator.Outcome step = Calibrator.calibrate(c.copy(), ofDay, Calibrator.seen(earlier));
             c.activities = step.activities();
             for (Commitment m : c.commitments) {
                 Commitment s = find(step.commitments(), m.id);

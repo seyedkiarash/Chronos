@@ -58,6 +58,14 @@ public final class Calibrator {
     private static final double[] THETAS = {0.3, 0.4, 0.5, 0.6, 0.7, 0.8};
 
     public static Outcome calibrate(Config cfg, List<LogEntry> logs) {
+        return calibrate(cfg, logs, Map.of());
+    }
+
+    /**
+     * @param seen how many earlier days each thing was rated on ({@link #seen}): the more it has
+     *             already been learned from, the smaller the step a new day takes (8 Nov 2026)
+     */
+    public static Outcome calibrate(Config cfg, List<LogEntry> logs, Map<String, Integer> seen) {
         Params p = cfg.params;
         double[] h = Energy.homeostatic(p);
         Map<LocalDate, List<LogEntry>> byDate = new HashMap<>();
@@ -142,17 +150,17 @@ public final class Calibrator {
         }
 
         List<Activity> acts = new ArrayList<>();
-        for (Activity a : cfg.activities) acts.add(learnActivity(a, logs, byDate, cfg, report));
+        for (Activity a : cfg.activities) acts.add(learnActivity(a, logs, byDate, cfg, report, seen));
 
         List<Commitment> coms = new ArrayList<>();
-        for (Commitment c : cfg.commitments) coms.add(learnTravel(c, logs, byDate, cfg, report));
+        for (Commitment c : cfg.commitments) coms.add(learnTravel(c, logs, byDate, cfg, report, seen));
 
         return new Outcome(out, acts, coms, report, clean.size(), obs.size());
     }
 
     private static Activity learnActivity(Activity a, List<LogEntry> logs,
                                           Map<LocalDate, List<LogEntry>> byDate,
-                                          Config cfg, List<Change> report) {
+                                          Config cfg, List<Change> report, Map<String, Integer> seen) {
         List<LogEntry> mine = logs.stream()
             .filter(l -> l.kind == LogKind.SESSION && a.id.equals(l.actId)).toList();
         if (mine.isEmpty()) return a;
@@ -170,10 +178,11 @@ public final class Calibrator {
             if (!rated.isEmpty()) {
                 double ratio = 0;
                 for (LogEntry l : rated)
-                    ratio += (l.attain / 100.0) * (l.planned / (double) Math.max(1, l.actual));
+                    ratio += Slots.clamp((l.attain / 100.0) * (l.planned / (double) Math.max(1, l.actual)), 0.1, 2);
                 ratio /= rated.size();
-                a.q = Slots.clamp(0.75 * a.q + 0.25 * ratio, 0.1, 2);
-                a.qSigma = Math.max(0.08, a.qSigma * Math.pow(0.88, rated.size()));
+                double[] qs = qStep(a.q, a.qSigma, ratio, rated.size());
+                a.q = qs[0];
+                a.qSigma = qs[1];
             }
         } else {
             List<LogEntry> rest = mine.stream().filter(l -> l.restored != null).toList();
@@ -184,7 +193,8 @@ public final class Calibrator {
                     double before = f[Slots.parse(l.at)];
                     rate += (before * (l.restored / 5.0)) / Math.max(0.25, l.actual / 60.0);
                 }
-                a.recovery = Slots.clamp(0.7 * nz(a.recovery) + 0.3 * (rate / rest.size()), 0, 1);
+                double k = gain(seen, "r:" + a.id);
+                a.recovery = Slots.clamp((1 - k) * nz(a.recovery) + k * (rate / rest.size()), 0, 1);
             }
         }
         // How tired it left you, mental and physical apart. A rating from before fatigue had two
@@ -194,11 +204,11 @@ public final class Calibrator {
             // Goal work's mental side moves its load; upkeep keeps learning its mental recovery from
             // "how restored", above. The physical side moves whichever of load and recovery it has.
             if (a.kind == ActivityKind.GOAL && !Double.isNaN(net[0])) {
-                double[] lr = step(nz(a.load), nz(a.recovery), net[0]);
+                double[] lr = step(nz(a.load), nz(a.recovery), net[0], gain(seen, "a:" + a.id));
                 a.load = Math.max(0.02, lr[0]); a.recovery = lr[1];
             }
             if (!Double.isNaN(net[1])) {
-                double[] lr = step(nz(a.physLoad), nz(a.physRecovery), net[1]);
+                double[] lr = step(nz(a.physLoad), nz(a.physRecovery), net[1], gain(seen, "a:" + a.id));
                 a.physLoad = lr[0]; a.physRecovery = lr[1];
             }
         }
@@ -328,19 +338,79 @@ public final class Calibrator {
      * step the single load always took.
      */
     static double[] step(double load, double recovery, double net) {
-        if (load >= recovery) return new double[]{Slots.clamp(0.7 * load + 0.3 * (net + recovery), 0, 1), recovery};
-        return new double[]{load, Slots.clamp(0.7 * recovery + 0.3 * (load - net), 0, 1)};
+        return step(load, recovery, net, 0.3);
+    }
+
+    /** The same step, moving a share {@code k} of the way. */
+    static double[] step(double load, double recovery, double net, double k) {
+        if (load >= recovery) return new double[]{Slots.clamp((1 - k) * load + k * (net + recovery), 0, 1), recovery};
+        return new double[]{load, Slots.clamp((1 - k) * recovery + k * (load - net), 0, 1)};
+    }
+
+    // ------------------------------------------------- how far one day moves things (8 Nov 2026)
+
+    /** How much one session's quality reading wanders around the truth (a share of it). */
+    static final double Q_OBS_SD = 0.35;
+    /** How far the true quality may drift in a day: the estimate never stops listening. */
+    static final double Q_DRIFT_SD = 0.04;
+    static final double Q_SD_MIN = 0.06, Q_SD_MAX = 0.5;
+
+    /**
+     * Quality as a Kalman filter on one number instead of a fixed quarter step: the step is the
+     * estimate's own uncertainty against the day's noise, K = P ÷ (P + σ²/n). A new activity (wide
+     * uncertainty) moves fast, a well-known one slowly; a day far off what was expected widens the
+     * uncertainty first (half the surprise beyond what was expected is added), so a habit that
+     * really changed is followed again. Returns {q, its uncertainty}.
+     */
+    public static double[] qStep(double q, double sd, double obs, int n) {
+        double r = Q_OBS_SD * Q_OBS_SD / Math.max(1, n);
+        double p = sd * sd + Q_DRIFT_SD * Q_DRIFT_SD;
+        double nu = obs - q;
+        p = Math.min(Q_SD_MAX * Q_SD_MAX, p + 0.5 * Math.max(0, nu * nu - (p + r)));
+        double k = p / (p + r);
+        return new double[]{Slots.clamp(q + k * nu, 0.1, 2), Math.max(Q_SD_MIN, Math.sqrt((1 - k) * p))};
+    }
+
+    /**
+     * The share of the way one day's load or recovery reading moves the value: as if the value you
+     * typed were three days of ratings and each day since one more, 1 ÷ (3 + days so far), never
+     * below 0.08 — a third at first, an eighth after five rated days.
+     */
+    public static double gain(Map<String, Integer> seen, String key) {
+        return Math.max(0.08, 1.0 / (3 + seen.getOrDefault(key, 0)));
+    }
+
+    /** For each thing rated in {@code earlier}, on how many days: the history {@link #gain} reads. */
+    public static Map<String, Integer> seen(List<LogEntry> earlier) {
+        Map<String, java.util.Set<LocalDate>> days = new HashMap<>();
+        for (LogEntry l : earlier) {
+            if (l.date == null) continue;
+            boolean tired = l.mentalAfter != null || l.physicalAfter != null || l.fatigueAfter != null;
+            String key = null;
+            if (l.kind == LogKind.SESSION && l.actId != null) {
+                if (tired) days.computeIfAbsent("a:" + l.actId, k -> new java.util.HashSet<>()).add(l.date);
+                if (l.restored != null) key = "r:" + l.actId;
+            } else if (l.kind == LogKind.CLASS && l.comId != null && l.at != null && tired) {
+                key = "c:" + l.comId + "|" + Slots.dow(l.date) + "|" + Slots.parse(l.at);
+            } else if (l.kind == LogKind.TRAVEL && l.comId != null && tired) {
+                key = "t:" + l.comId;
+            }
+            if (key != null) days.computeIfAbsent(key, k -> new java.util.HashSet<>()).add(l.date);
+        }
+        Map<String, Integer> out = new HashMap<>();
+        days.forEach((k, v) -> out.put(k, v.size()));
+        return out;
     }
 
     private static Commitment learnTravel(Commitment c, List<LogEntry> logs,
                                           Map<LocalDate, List<LogEntry>> byDate, Config cfg,
-                                          List<Change> report) {
-        if (c.kind == CommitmentKind.FIXED) { learnSessions(c, logs, byDate, cfg, report); return c; }
+                                          List<Change> report, Map<String, Integer> seen) {
+        if (c.kind == CommitmentKind.FIXED) { learnSessions(c, logs, byDate, cfg, report, seen); return c; }
         if (c.kind != CommitmentKind.VARIABLE) return c;
         List<LogEntry> trips = logs.stream()
             .filter(l -> l.kind == LogKind.TRAVEL && c.id.equals(l.comId) && l.actual != null && l.actual > 0)
             .toList();
-        learnTripLoad(c, trips, byDate, cfg, report);
+        learnTripLoad(c, trips, byDate, cfg, report, seen);
         if (trips.size() < 3) return c;
 
         double mu = 0;
@@ -366,7 +436,7 @@ public final class Calibrator {
      * of a session is enough for a step.
      */
     private static void learnSessions(Commitment c, List<LogEntry> logs, Map<LocalDate, List<LogEntry>> byDate,
-                                      Config cfg, List<Change> report) {
+                                      Config cfg, List<Change> report, Map<String, Integer> seen) {
         for (Commitment.Session s : c.sessions) {
             List<LogEntry> mine = new ArrayList<>();
             for (LogEntry l : logs)
@@ -378,8 +448,9 @@ public final class Calibrator {
             if (net == null) continue;
             double oldM = s.loadOr(c.load), oldMR = s.recoveryOr(c.recovery);
             double oldP = s.physLoadOr(c.physLoad), oldPR = s.physRecoveryOr(c.physRecovery);
-            if (!Double.isNaN(net[0])) { double[] lr = step(oldM, oldMR, net[0]); s.load = lr[0]; s.recovery = lr[1]; }
-            if (!Double.isNaN(net[1])) { double[] lr = step(oldP, oldPR, net[1]); s.physLoad = lr[0]; s.physRecovery = lr[1]; }
+            double k = gain(seen, "c:" + c.id + "|" + s.day + "|" + Slots.parse(s.start));
+            if (!Double.isNaN(net[0])) { double[] lr = step(oldM, oldMR, net[0], k); s.load = lr[0]; s.recovery = lr[1]; }
+            if (!Double.isNaN(net[1])) { double[] lr = step(oldP, oldPR, net[1], k); s.physLoad = lr[0]; s.physRecovery = lr[1]; }
             report.add(new Change(c.name + " (" + Slots.DOW[s.day] + " " + s.start + ")", String.format(
                 "mental load %.2f to %.2f, mental recovery %.2f to %.2f, physical load %.2f to %.2f, physical recovery %.2f to %.2f",
                 oldM, s.loadOr(c.load), oldMR, s.recoveryOr(c.recovery), oldP, s.physLoadOr(c.physLoad), oldPR, s.physRecoveryOr(c.physRecovery))));
@@ -393,12 +464,13 @@ public final class Calibrator {
      */
     private static void learnTripLoad(Commitment c, List<LogEntry> trips,
                                       Map<LocalDate, List<LogEntry>> byDate, Config cfg,
-                                      List<Change> report) {
+                                      List<Change> report, Map<String, Integer> seen) {
         double[] net = netRates(trips, byDate, cfg, FatigueSplit.physicalShare(c.load, c.physLoad));
         if (net == null) return;
+        double k = gain(seen, "t:" + c.id);
         double old = nz(c.load), oldP = nz(c.physLoad);
-        if (!Double.isNaN(net[0])) { double[] lr = step(nz(c.load), nz(c.recovery), net[0]); c.load = lr[0]; c.recovery = lr[1]; }
-        if (!Double.isNaN(net[1])) { double[] lr = step(nz(c.physLoad), nz(c.physRecovery), net[1]); c.physLoad = lr[0]; c.physRecovery = lr[1]; }
+        if (!Double.isNaN(net[0])) { double[] lr = step(nz(c.load), nz(c.recovery), net[0], k); c.load = lr[0]; c.recovery = lr[1]; }
+        if (!Double.isNaN(net[1])) { double[] lr = step(nz(c.physLoad), nz(c.physRecovery), net[1], k); c.physLoad = lr[0]; c.physRecovery = lr[1]; }
         if (nz(c.load) != old || nz(c.physLoad) != oldP)
             report.add(new Change(c.name, String.format(
                 "fatigue load %.2f to %.2f, physical %.2f to %.2f (%d trips)", old, nz(c.load), oldP, nz(c.physLoad), trips.size())));

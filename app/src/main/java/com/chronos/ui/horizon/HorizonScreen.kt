@@ -101,6 +101,21 @@ fun HorizonScreen(vm: ChronosViewModel) {
         TextButton(onClick = { vm.openTab = "density" }) { Text(tr("What could give way") + " ›") }
     }
 
+    // A plan no bigger than you (8 Nov 2026): goal work a day up to what your good days held.
+    vm.goalCap?.let { cap ->
+        Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(tr("At most") + " " + trimNumber(cap.capH()) + " h " + tr("of goal work a day"),
+                    style = MaterialTheme.typography.bodyMedium)
+                Hint(tr("Your good days of the last four weeks held") + " " + trimNumber(Math.round(cap.goodDayH() * 10) / 10.0) +
+                     " h (" + cap.days() + " " + tr("logged days") + "); " +
+                     tr(if (vm.goalCapOn) "the plan asks a tenth more, so it measures you and not an overfull plan."
+                        else "off: goal work fills all the free time."))
+            }
+            Switch(checked = vm.goalCapOn, onCheckedChange = { vm.setGoalCap(it) }, enabled = !vm.busy)
+        }
+    }
+
     // ---- the four tiles (your choice of 24 Oct 2026); each takes you to its picture
     val scope = rememberCoroutineScope()
     val toMonth = remember { androidx.compose.foundation.relocation.BringIntoViewRequester() }

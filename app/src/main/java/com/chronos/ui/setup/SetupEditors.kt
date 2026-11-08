@@ -694,6 +694,8 @@ private fun ActivityEditor(vm: ChronosViewModel, e: Editing.OfActivity, issues: 
                 }
                 // Moved to upkeep: its target goes with it.
                 if (upkeep && old != null) c.goals.removeIf { it.id == old }
+                // A new activity starts from the ones like it (8 Nov 2026).
+                if (i < 0) com.chronos.engine.Similar.seed(saved, c)
             }
             if (upkeep && old != null) vm.forgetGoal(old)
             close()

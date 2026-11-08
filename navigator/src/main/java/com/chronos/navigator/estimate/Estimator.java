@@ -137,14 +137,47 @@ public final class Estimator {
                 + fmt(prior.get("a")) + ", " + fmt(prior.get("b")) + ") fading as " + days + " planned days add up, "
                 + "recent days counting most.", now,
             "a", a, "b", b, "mean", mean, "days", days));
-        for (Map.Entry<String, double[]> e : perAct.entrySet()) {
-            double[] x = e.getValue();
-            double aa = k * mean + x[0], bb = k * (1 - mean) + x[1];
-            out.add(post("adherence." + e.getKey(), Dist.BETA, "Share of the time planned for \"" + e.getKey()
+        // Each activity is shrunk toward the activities like it (8 Nov 2026) as well as your overall habit,
+        // and one on the graph with no days yet starts there instead of at the overall habit.
+        Map<String, Set<String>> nodes = nodesOf(in);
+        Set<String> names = new java.util.TreeSet<>(perAct.keySet());
+        for (List<String> l : in.nodeActivities.values()) names.addAll(l);
+        for (String name : names) {
+            double[] x = perAct.getOrDefault(name, new double[3]);
+            double sw = 0, sm = 0;
+            List<String> like = new ArrayList<>();
+            for (Map.Entry<String, double[]> o : perAct.entrySet()) {
+                double[] y = o.getValue();
+                if (o.getKey().equals(name) || y[2] < 3 || y[0] + y[1] <= 0) continue;
+                double s = Similarity.score(name, o.getKey(), shareNode(nodes, name, o.getKey()));
+                if (s <= 0) continue;
+                sw += s; sm += s * y[0] / (y[0] + y[1]);
+                like.add(o.getKey());
+            }
+            if (x[2] == 0 && sw == 0) continue;            // nothing of its own, nothing like it: the overall habit
+            double center = (mean + sm) / (1 + sw);
+            double aa = k * center + x[0], bb = k * (1 - center) + x[1];
+            out.add(post("adherence." + name, Dist.BETA, "Share of the time planned for \"" + name
                     + "\" actually worked, over " + fmt(x[2]) + " planned days (recent days counting most), "
-                    + "shrunk toward your overall habit as if by " + fmt(k) + " days.", now,
+                    + "shrunk as if by " + fmt(k) + " days toward your overall habit"
+                    + (like.isEmpty() ? "" : " and the activities like it (" + String.join(", ", like) + ")") + ".", now,
                 "a", aa, "b", bb, "mean", aa / (aa + bb), "days", x[2]));
         }
+    }
+
+    /** Activity to the nodes it is worked under. */
+    static Map<String, Set<String>> nodesOf(Inputs in) {
+        Map<String, Set<String>> out = new HashMap<>();
+        for (Map.Entry<String, List<String>> e : in.nodeActivities.entrySet())
+            for (String a : e.getValue()) out.computeIfAbsent(a, x -> new java.util.HashSet<>()).add(e.getKey());
+        return out;
+    }
+
+    static boolean shareNode(Map<String, Set<String>> nodes, String a, String b) {
+        Set<String> x = nodes.get(a), y = nodes.get(b);
+        if (x == null || y == null) return false;
+        for (String n : x) if (y.contains(n)) return true;
+        return false;
     }
 
     // ------------------------------------------------------------------- bias
@@ -202,7 +235,19 @@ public final class Estimator {
         }
         Set<String> classes = new java.util.TreeSet<>(days.keySet());
         classes.addAll(units.keySet());
-        for (String cls : classes) {
+        // First every activity from its own prior; then one that had only the default prior starts again
+        // from the activities like it that have days of their own (8 Nov 2026). One on the graph with no
+        // day yet is given that start too, when anything like it is known.
+        Map<String, double[]> levels = new HashMap<>();     // class -> {level, days}, first pass
+        Set<String> fromDefault = new java.util.HashSet<>();
+        Map<String, Param> first = new LinkedHashMap<>();
+        Set<String> graphOnly = new java.util.TreeSet<>();
+        for (List<String> l : in.nodeActivities.values()) for (String a : l) if (!classes.contains(a)) graphOnly.add(a);
+        Map<String, Set<String>> nodes = nodesOf(in);
+        for (int round = 0; round < 2; round++) {
+        Set<String> todo = round == 0 ? classes : new java.util.TreeSet<>(fromDefault);
+        if (round == 1) todo.addAll(graphOnly);
+        for (String cls : todo) {
             double mu0, tau0;
             String from;
             Node unitNode = units.get(cls);
@@ -220,6 +265,23 @@ public final class Estimator {
                 mu0 = Math.log(def.get("median"));
                 tau0 = def.get("sigma");
                 from = "the default prior";
+                if (round == 0) fromDefault.add(cls);
+                else {
+                    double sw = 0, sm = 0;
+                    List<String> like = new ArrayList<>();
+                    for (Map.Entry<String, double[]> o : levels.entrySet()) {
+                        if (o.getKey().equals(cls) || o.getValue()[1] < 3) continue;
+                        // Minutes per unit and actual ÷ planned are different numbers: alike only within a kind.
+                        if (in.unitGoals.containsKey(o.getKey()) != (ug != null)) continue;
+                        double s = Similarity.score(cls, o.getKey(), shareNode(nodes, cls, o.getKey()));
+                        if (s <= 0) continue;
+                        sw += s; sm += s * o.getValue()[0];
+                        like.add(o.getKey());
+                    }
+                    if (sw == 0) continue;                 // nothing like it: the first pass stands
+                    mu0 = (mu0 + sm) / (1 + sw);
+                    from = "the activities like it (" + String.join(", ", like) + ")";
+                }
             }
             Kalman kf = new Kalman(mu0, tau0 * tau0, 0, s0 * s0, qL * qL, qS * qS);
             Map<LocalDate, double[]> obs = days.getOrDefault(cls, Map.of());
@@ -234,11 +296,14 @@ public final class Estimator {
                 kf.update(y, sigma * sigma / n / regimeWeight(g, d.getKey()));
             }
             if (at != null) kf.predict(ChronoUnit.DAYS.between(at, today));
-            out.add(post("bias." + cls, Dist.LOGNORMAL, "Actual ÷ planned for \"" + cls + "\": " + from
+            if (round == 0) levels.put(cls, new double[]{kf.level, obs.size()});
+            first.put(cls, post("bias." + cls, Dist.LOGNORMAL, "Actual ÷ planned for \"" + cls + "\": " + from
                     + ", followed through " + obs.size() + " days by a Kalman filter (level and trend).", now,
                 "mu", kf.level, "tau", Math.sqrt(kf.pLL), "median", Math.exp(kf.level),
                 "slope", kf.slope, "slope_sd", Math.sqrt(kf.pSS), "n", obs.size()));
         }
+        }
+        out.addAll(first.values());
     }
 
     /** A local-linear-trend Kalman filter on one number: level and slope per day. */

@@ -188,6 +188,10 @@ public final class HorizonPlanner {
         List<DayCapacity> days = new ArrayList<>(n);
         for (int i = 0; i < n; i++) {
             DayCapacity d = capacityOf(cfg, start.plusDays(i), i, i < cuts.size() ? cuts.get(i) : Map.of());
+            // No more goal work a day than your good days held (8 Nov 2026).
+            if (cfg.goalCapH != null && d.capacityH() > cfg.goalCapH)
+                d = new DayCapacity(d.index(), d.date(), d.dow(), d.freeH(), d.upkeepH(), d.travelH(),
+                                    cfg.goalCapH, Math.min(d.highFocusH(), cfg.goalCapH));
             double s = i < scale.length ? Math.max(0, scale[i]) : 1;
             if (s != 1) d = new DayCapacity(d.index(), d.date(), d.dow(), d.freeH(), d.upkeepH(), d.travelH(),
                                             d.capacityH() * s, d.highFocusH() * s);

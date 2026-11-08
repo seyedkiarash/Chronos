@@ -45,7 +45,7 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
 
     companion object {
         /** Raised when the way days are arranged changes, so stored plans are solved again. */
-        private const val ENGINE_VERSION = 12
+        private const val ENGINE_VERSION = 13   // 13: goal work capped at what your good days held (8 Nov 2026)
         /** How far ahead the Horizon screen looks for things that did not fit. */
         private const val UPCOMING_DAYS = 7
     }
@@ -380,6 +380,26 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
                   else "Back to the normal plan for today."
     }
 
+    // ------------------------------------------- a plan no bigger than you (8 Nov 2026)
+
+    /** What your good days held and the cap from it; null with too few logged days. */
+    var goalCap by mutableStateOf<com.chronos.engine.GoalCap.Cap?>(null); private set
+    var goalCapOn by mutableStateOf(true); private set
+
+    private fun readGoalCap() {
+        goalCap = repo.goalCap()
+        goalCapOn = repo.goalCapOn()
+    }
+
+    /** Turns the cap on or off and plans again with it. */
+    fun setGoalCap(on: Boolean) = work {
+        repo.setGoalCapOn(on)
+        config = repo.loadConfig()
+        readGoalCap()
+        replanToday()
+        message = if (on) "Goal work is planned up to what your good days held." else "Goal work is planned in all the free time again."
+    }
+
     // ---------------------------------------------------------- a heavy day (6 Nov 2026)
 
     /** The share of today kept, when you chose to run it lighter; null on a normal day. */
@@ -503,6 +523,7 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
             runCatching { AutoPlanner.catchUp(app) }
             config = repo.loadConfig()
             val repaired = repairConfig()
+            runCatching { readGoalCap() }
             issues = repo.readiness(config)
             feasibility = repo.feasibility(config)
             logs = freshLogs()
