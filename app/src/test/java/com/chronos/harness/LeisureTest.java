@@ -211,7 +211,38 @@ public class LeisureTest {
         cfg.activities.add(leisure("film", 0.5, 30, 90, 1));
         DaySequencer.Result r = DaySequencer.run(cfg, dow, Map.of("lit", 3.0, "english", 1.0), 7L);
         List<Block> fun = leisureIn(r);
-        assertTrue("a rest at home is still chosen", fun.stream().anyMatch(b -> b.act.id.equals("film")));
+        assertTrue("a rest at home is still chosen: " + r.blocks().stream().filter(b -> b.start >= 0).map(b -> b.start + "+" + b.dur + " " + b.name + (b.leisure ? "L" : "") + (b.gap ? "G" : "")).toList(), fun.stream().anyMatch(b -> b.act.id.equals("film")));
         assertTrue("no walk on a day with no outing", fun.stream().noneMatch(b -> b.act.id.equals("walk")));
+    }
+
+    /**
+     * On a day with classes away, a walk outside goes between the trip out and the trip back, never at
+     * home before leaving (8 Nov 2026); and no rest ever overlaps anything else.
+     */
+    @Test
+    public void aWalkOutsideFallsWhileYouAreOut() {
+        for (int k = 0; k < 7; k++) {
+            LocalDate day = DAY.plusDays(k);
+            Config cfg = ParityHarness.build(day);
+            Activity walk = leisure("walk", 0.15, 15, 45, 1);
+            walk.away = true;
+            cfg.activities.add(walk);
+            cfg.activities.add(leisure("film", 0.5, 30, 90, 1));
+            DaySequencer.Result r = DaySequencer.run(cfg, Slots.dow(day), Map.of("lit", 3.0, "english", 1.0), 7L);
+            Block out = null, back = null;
+            for (Block b : r.blocks()) {
+                if (b.start < 0 || b.name == null) continue;
+                if (b.name.endsWith(" (out)")) out = b;
+                if (b.name.endsWith(" (back)")) back = b;
+            }
+            for (Block b : r.blocks()) {
+                if (b.start < 0 || !b.leisure) continue;
+                for (Block o : r.blocks())
+                    if (o != b && o.start >= 0 && !o.gap) assertTrue("a rest on top of " + o.name,
+                        o.start >= b.start + b.dur || b.start >= o.start + o.dur);
+                if (b.act.id.equals("walk") && out != null && back != null)
+                    assertTrue("the walk is while out", b.start >= out.start + out.dur && b.start + b.dur <= back.start);
+            }
+        }
     }
 }

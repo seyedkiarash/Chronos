@@ -80,6 +80,13 @@ private val SESSION_TAGS = listOf("Noisy or interrupted", "Unwell", "Stressed", 
 private const val SKIPPED = "Skipped"
 private const val NOTHING_INSTEAD = "Nothing instead"
 
+/** Activities by what they are, in this order: goal work, upkeep, leisure. Empty kinds are left out. */
+private fun kindsOf(list: List<com.chronos.model.Activity>): List<Pair<String, List<com.chronos.model.Activity>>> = listOf(
+    "Goal work" to list.filter { it.kind == Enums.ActivityKind.GOAL },
+    "Upkeep" to list.filter { it.kind != Enums.ActivityKind.GOAL && !it.leisure },
+    "Leisure" to list.filter { it.kind != Enums.ActivityKind.GOAL && it.leisure },
+).filter { it.second.isNotEmpty() }
+
 private fun energyId(day: LocalDate, hour: Int) = "energy|$day|$hour"
 private fun sessionId(day: LocalDate, actId: String, slot: Int) = "session|$day|$actId|$slot"
 private fun insteadPrefix(day: LocalDate, actId: String, slot: Int) = "instead|$day|$actId|$slot|"
@@ -1046,10 +1053,16 @@ private fun SessionBox(vm: ChronosViewModel, day: LocalDate, b: Block, act: Acti
             }
             FlowRowSimple {
                 Pill("Nothing", nothing && instead.isEmpty()) { nothing = true; choose(emptyList()) }
-                others.forEach { o ->
-                    Pill(o.name ?: "", o.id in instead) {
-                        nothing = false
-                        choose(if (o.id in instead) instead - o.id else instead + o.id)
+            }
+            // Goal work, upkeep and leisure apart (your request of 8 Nov 2026): one long row was hard to read.
+            kindsOf(others).forEach { (title, list) ->
+                Text(tr(title), style = MaterialTheme.typography.labelSmall, color = Palette.Muted, modifier = Modifier.padding(top = 4.dp))
+                FlowRowSimple {
+                    list.forEach { o ->
+                        Pill(o.name ?: "", o.id in instead) {
+                            nothing = false
+                            choose(if (o.id in instead) instead - o.id else instead + o.id)
+                        }
                     }
                 }
             }
@@ -1277,7 +1290,8 @@ private fun ExtraBox(vm: ChronosViewModel, day: LocalDate, id: String, saved: Lo
     }
     FeedbackCard(time, act.name ?: "", status,
         if (saved == null) MaterialTheme.colorScheme.onSurfaceVariant else Palette.Moss, open, { open = !open }) {
-        Choice("What did you do", actId, vm.loggableOn(day, listOfNotNull(saved?.actId)).map { it.id to (it.name ?: it.id) }) { actId = it }
+        Choice("What did you do", actId, kindsOf(vm.loggableOn(day, listOfNotNull(saved?.actId))).flatMap { (title, list) ->
+            list.map { it.id to ((it.name ?: it.id) + "  ·  " + tr(title)) } }) { actId = it }
         val minutes = draft.minutes ?: 0
         val target = expectedUnits(vm.config, act, minutes)
         SessionInputs(draft, act, goalOf(vm.config, act), target, null)

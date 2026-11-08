@@ -936,6 +936,8 @@ public final class DaySequencer {
         if (pool.isEmpty()) return;
         breaks(pool);
         for (int round = 0; round < 24; round++) if (!fillOne(pool)) break;
+        // What gave way leaves free time, filled again, now with nothing under it.
+        if (dropOverlappingRests()) for (int round = 0; round < 24; round++) if (!fillOne(pool)) break;
     }
 
     /** One leisure block of [a] at [st] for [len] slots. */
@@ -949,7 +951,43 @@ public final class DaySequencer {
     private boolean allowed(Activity a, int st, int len) {
         boolean[] mask = maskOf(a.windows);
         for (int t = st; t < st + len; t++) if (t < 0 || t >= PER_DAY || taken[t] || !mask[t]) return false;
+        // A rest outside goes where you already are outside: after the trip out, before the trip back
+        // (a walk was planned at home just before leaving, 8 Nov 2026).
+        if (a.away) {
+            int[] out = outSpan();
+            if (out != null && (st < out[0] || st + len > out[1])) return false;
+        }
         return true;
+    }
+
+    /** From the end of the trip out to the start of the trip back; null on a day with no trip. */
+    private int[] outSpan() {
+        Integer from = null, to = null;
+        for (Block b : placed) {
+            if (b.start < 0 || !b.away || b.name == null) continue;
+            if (b.name.endsWith(" (out)")) from = from == null ? b.start + b.dur : Math.min(from, b.start + b.dur);
+            if (b.name.endsWith(" (back)")) to = to == null ? b.start : Math.max(to, b.start);
+        }
+        return from != null && to != null && from < to ? new int[]{from, to} : null;
+    }
+
+    /**
+     * A rest never sits on anything else: a break opened between two blocks could end up on a meal
+     * that moved with them (seen on 8 Nov 2026). Such a rest gives way. Returns whether one did.
+     */
+    private boolean dropOverlappingRests() {
+        boolean dropped = false;
+        List<Block> rests = new ArrayList<>();
+        for (Block b : placed) if (b.start >= 0 && b.leisure && !b.kept) rests.add(b);
+        for (Block r : rests)
+            for (Block o : placed)
+                if (o != r && o.start >= 0 && !o.gap && o.start < r.start + r.dur && r.start < o.start + o.dur) {
+                    placed.remove(r);
+                    rebuildTaken();
+                    dropped = true;
+                    break;
+                }
+        return dropped;
     }
 
     /** Whether a session of [a] would touch another of its own: one longer rest, not two halves. */

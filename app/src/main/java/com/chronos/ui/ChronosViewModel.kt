@@ -45,7 +45,7 @@ class ChronosViewModel(private val app: Application) : AndroidViewModel(app) {
 
     companion object {
         /** Raised when the way days are arranged changes, so stored plans are solved again. */
-        private const val ENGINE_VERSION = 11
+        private const val ENGINE_VERSION = 12
         /** How far ahead the Horizon screen looks for things that did not fit. */
         private const val UPCOMING_DAYS = 7
     }
