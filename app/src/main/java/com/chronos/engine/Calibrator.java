@@ -3,6 +3,7 @@ package com.chronos.engine;
 import com.chronos.model.Activity;
 import com.chronos.model.Commitment;
 import com.chronos.model.Config;
+import com.chronos.model.Goal;
 import com.chronos.model.Enums.ActivityKind;
 import com.chronos.model.Enums.CommitmentKind;
 import com.chronos.model.Enums.LogKind;
@@ -160,7 +161,12 @@ public final class Calibrator {
         double oldPL = nz(a.physLoad), oldPR = nz(a.physRecovery);
 
         if (a.kind == ActivityKind.GOAL) {
-            List<LogEntry> rated = mine.stream().filter(l -> l.attain != null).toList();
+            // One speed (8 Nov 2026): once a goal's hours per unit are the speed its log measured, a session
+            // logged with its units is in them already, and folding it into q too would plan the slowness twice.
+            Goal goal = a.goalId == null ? null : cfg.goal(a.goalId);
+            boolean unitsSpeak = goal != null && goal.speedFromLog;
+            List<LogEntry> rated = mine.stream().filter(l -> l.attain != null)
+                .filter(l -> !(unitsSpeak && l.units != null && l.units > 0)).toList();
             if (!rated.isEmpty()) {
                 double ratio = 0;
                 for (LogEntry l : rated)

@@ -49,7 +49,10 @@ object NavEngine {
         val inputs = inputs(context, g, cfg)
         val now = System.currentTimeMillis()
         val learned = Estimator.run(g, inputs, today, now)
-        store.savePosteriors(learned.posteriors())
+        // How right it has been (8 Nov 2026): the past eight weeks replayed, kept with what was learned.
+        val accuracy = com.chronos.navigator.estimate.Accuracy.asParams(
+            com.chronos.navigator.estimate.Accuracy.backtest(g, inputs, today, 8), now)
+        store.savePosteriors(learned.posteriors() + accuracy)
         learned.posteriors().forEach { g.params[it.key] = it }
 
         val runs = g.params["forecast.runs_nightly"]?.get("value")?.toInt() ?: 5000

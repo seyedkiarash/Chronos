@@ -53,7 +53,7 @@ public final class Mappers {
         g.hoursPerUnit = r.hoursPerUnit; g.deadline = date(r.deadline);
         g.weeklyFloorH = r.weeklyFloorH; g.maxPerDayH = r.maxPerDayH; g.weight = r.weight;
         g.groupName = r.groupName; g.note = r.note; g.deadlineTime = r.deadlineTime;
-        g.tier = r.tier; g.rank = r.rank; g.tierAuto = r.tierAuto;
+        g.tier = r.tier; g.rank = r.rank; g.tierAuto = r.tierAuto; g.speedFromLog = r.speedFromLog;
         return g;
     }
 
@@ -66,7 +66,7 @@ public final class Mappers {
         r.hoursPerUnit = g.hoursPerUnit; r.deadline = date(g.deadline);
         r.weeklyFloorH = g.weeklyFloorH; r.maxPerDayH = g.maxPerDayH; r.weight = g.weight;
         r.groupName = g.groupName; r.note = g.note; r.deadlineTime = g.deadlineTime;
-        r.tier = g.tier; r.rank = g.rank; r.tierAuto = g.tierAuto;
+        r.tier = g.tier; r.rank = g.rank; r.tierAuto = g.tierAuto; r.speedFromLog = g.speedFromLog;
         r.position = position;
         return r;
     }
@@ -229,7 +229,7 @@ public final class Mappers {
         for (GoalRow r : goalRows(c))
             sb.append(r.id).append(r.mode).append(r.totalUnits).append(r.doneUnits)
               .append(r.hoursPerUnit).append(r.deadline).append(r.weeklyFloorH)
-              .append(r.maxPerDayH).append(r.weight);
+              .append(r.maxPerDayH).append(r.weight).append(r.speedFromLog);
         for (ActivityRow r : activityRows(c))
             sb.append(r.id).append(r.kind).append(r.goalId).append(r.days).append(r.minBlock)
               .append(r.maxBlock).append(r.load).append(r.recovery).append(r.physLoad).append(r.physRecovery).append(r.q).append(r.qSigma)

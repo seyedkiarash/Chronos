@@ -58,7 +58,8 @@ private fun SyncRow(nav: NavigatorViewModel, d: Sync.Diff) {
             Sync.Kind.FINISHED_IN_GRAPH -> "Done in the graph, units left in Chronos"
             Sync.Kind.WEEKLY_HOURS -> "Weekly hours: Chronos differs from the graph"
         }), style = MaterialTheme.typography.labelMedium, color = Palette.Ochre)
-        Text(d.nodeTitle + "  ⇄  " + d.goalName, style = MaterialTheme.typography.bodySmall)
+        Text(if (d.nodeId.isEmpty() || d.nodeTitle == d.goalName) d.goalName else d.nodeTitle + "  ⇄  " + d.goalName,
+            style = MaterialTheme.typography.bodySmall)
         Hint(tr(if (d.kind == Sync.Kind.HOURS_PER_UNIT) "Learned from your log" else "Graph") + ": " + show(d.graph) +
              "   ·   Chronos: " + show(d.chronos))
         d.note?.let { Hint(it) }
@@ -66,6 +67,7 @@ private fun SyncRow(nav: NavigatorViewModel, d: Sync.Diff) {
             Hint(tr("Chronos plans") + " " + d.chronos + " h " + tr("per") + " " + (d.unit ?: tr("unit")) + "; " +
                  tr("your log says") + " " + d.graph + " h" + trendText(d.trendPerWeek) + ".")
             Hint("With the learned value Chronos plans enough time to meet the deadline.")
+            Hint("It becomes the goal's one speed: a session logged with its units then changes only this number, not how well that activity's sessions are judged to go, so slowness is not counted twice.")
         }
         FlowRowSimple {
             if (d.toGraph) OutlinedButton(onClick = { nav.applySync(d, false) }, enabled = !nav.busy,

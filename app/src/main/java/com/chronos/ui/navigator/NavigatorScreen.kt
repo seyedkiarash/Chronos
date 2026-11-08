@@ -62,7 +62,7 @@ fun NavigatorScreen(nav: NavigatorViewModel, vm: com.chronos.ui.ChronosViewModel
             SyncPanel(nav)
             QuestionsPanel(nav)
         }
-        NavPage.LEARNING -> LearnedPanel(nav)
+        NavPage.LEARNING -> { AccuracyPanel(nav); LearnedPanel(nav) }
         NavPage.SETTINGS -> {
             ImportPanel(nav)
             if (nav.refused.isNotEmpty()) RefusedPanel(nav.refused)

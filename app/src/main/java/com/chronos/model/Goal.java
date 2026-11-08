@@ -29,6 +29,13 @@ public class Goal {
     public boolean tierAuto;
 
     /**
+     * One speed (8 Nov 2026): you took the hours per unit your log measured, so they are the goal's speed.
+     * A session logged with its units then leaves the activity's quality alone — its minutes are already
+     * in the hours per unit, and counting them twice would plan the slowness twice.
+     */
+    public boolean speedFromLog;
+
+    /**
      * The goal this belongs to, as you name it (your decision of 17 Oct 2026). What you call a goal is an
      * umbrella over activities; each goal activity carries its own target — this object — so one Goal
      * here is the target of exactly one activity, and the goals you see are the groups of these.
@@ -44,7 +51,7 @@ public class Goal {
         g.hoursPerUnit = hoursPerUnit; g.deadline = deadline;
         g.weeklyFloorH = weeklyFloorH; g.maxPerDayH = maxPerDayH; g.weight = weight;
         g.groupName = groupName; g.note = note; g.deadlineTime = deadlineTime;
-        g.tier = tier; g.rank = rank; g.tierAuto = tierAuto;
+        g.tier = tier; g.rank = rank; g.tierAuto = tierAuto; g.speedFromLog = speedFromLog;
         return g;
     }
 

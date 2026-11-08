@@ -54,6 +54,8 @@ public final class Entities {
         /** v16: priority level and place within it; whether the app chose them. */
         public Integer tier, rank;
         public boolean tierAuto;
+        /** v18: the hours per unit are the speed your log measured. */
+        public boolean speedFromLog;
     }
 
     @Entity(tableName = "activities")

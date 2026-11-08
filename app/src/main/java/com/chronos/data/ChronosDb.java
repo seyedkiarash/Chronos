@@ -40,7 +40,7 @@ import com.chronos.navigator.store.NavEntities;
         NavEntities.ProposalRow.class,
         NavEntities.LlmCallRow.class
     },
-    version = 17,
+    version = 18,
     exportSchema = true
 )
 public abstract class ChronosDb extends RoomDatabase {

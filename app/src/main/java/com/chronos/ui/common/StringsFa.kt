@@ -3790,4 +3790,36 @@ internal val Fa: Map<String, String> = mapOf(
         to "انرژی‌ات (۱ کم · ۵ زیاد) و اینکه روز چقدر سنگین بود: روی پیشنهاد استراحت و یادگیری ساعت بدن اثر دارند و در جمع‌بندی روز هم می‌آیند.",
     "1 day"
         to "۱ روز",
+    "How right the model has been"
+        to "مدل تا حالا چقدر درست گفته",
+    "Needs a week of log to judge: each week is checked against what the model said before it began."
+        to "برای سنجیدن، دست‌کم یک هفته ثبت لازم است: هر هفته با چیزی مقایسه می‌شود که مدل پیش از شروعش گفته بود.",
+    "Hours you would work"
+        to "ساعت‌هایی که کار می‌کنی",
+    "Taking the plan at its word"
+        to "اگر برنامه را همان‌طور که هست باور کنیم",
+    "The learning helps here."
+        to "اینجا یادگیری کمک می‌کند.",
+    "No better than the plan yet: more days of log will tell."
+        to "هنوز بهتر از خود برنامه نیست: با روزهای ثبت بیشتر معلوم می‌شود.",
+    "Time a unit takes"
+        to "زمانی که هر واحد می‌برد",
+    "Chronos's own hours per unit"
+        to "ساعت به ازای هر واحدِ خود Chronos",
+    "No better than the plain figure yet: more days of log will tell."
+        to "هنوز بهتر از عدد ساده نیست: با روزهای ثبت بیشتر معلوم می‌شود.",
+    "100% is a week foreseen exactly. Each week is judged with only what was logged before it began."
+        to "۱۰۰٪ یعنی هفته دقیقاً همان‌طور که پیش‌بینی شده بود گذشت. هر هفته فقط با ثبت‌های پیش از شروعش سنجیده می‌شود.",
+    "Week by week"
+        to "هفته به هفته",
+    "planned"
+        to "برنامه‌ریزی‌شده",
+    "foreseen"
+        to "پیش‌بینی",
+    "worked"
+        to "کار‌شده",
+    "speed off by"
+        to "خطای سرعت",
+    "It becomes the goal's one speed: a session logged with its units then changes only this number, not how well that activity's sessions are judged to go, so slowness is not counted twice."
+        to "از این به بعد این تنها سرعت این هدف است: جلسه‌ای که با تعداد واحدهایش ثبت شود فقط همین عدد را تغییر می‌دهد، نه ارزیابی کیفیت جلسه‌های آن فعالیت را؛ پس کندی دو بار حساب نمی‌شود.",
 )

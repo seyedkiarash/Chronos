@@ -80,19 +80,6 @@ object Sync {
                 if (n.unitsTotal != null && goal.totalUnits != null && abs(n.unitsTotal - goal.totalUnits) > 1e-9)
                     out += Diff(Kind.UNITS, n.id, title, goal.id, name, num(n.unitsTotal), num(goal.totalUnits),
                         toChronos = true, toGraph = true, note = null)
-                val act = cfg.activities.firstOrNull { it.goalId == goal.id && it.name != null }?.name?.let { Requirements.norm(it) }
-                val bias = act?.let { g.params[Estimator.POST + "bias." + it] }
-                val hpu = goal.hoursPerUnit
-                // Finished work has no more hours to plan: its speed is not worth a question.
-                if (!done(n) && goal.remainingUnits() > 1e-9 && bias != null && hpu != null && hpu > 0 && (bias.get("n") ?: 0.0) >= 3) {
-                    val learned = Math.round(hpu * (bias.get("median") ?: 1.0) * 20) / 20.0
-                    if (abs(learned - hpu) / hpu > 0.15) {
-                        val week = bias.get("slope")?.let { (exp(it * 7) - 1) * 100 }
-                        out += Diff(Kind.HOURS_PER_UNIT, n.id, title, goal.id, name, num(learned), num(hpu),
-                            toChronos = true, toGraph = false,
-                            note = null, unit = goal.unit, trendPerWeek = week?.div(100))
-                    }
-                }
                 val finishedInChronos = goal.totalUnits != null && goal.remainingUnits() <= 1e-9
                 if (finishedInChronos && !done(n))
                     out += Diff(Kind.FINISHED_IN_CHRONOS, n.id, title, goal.id, name, "open", "finished",
@@ -101,6 +88,24 @@ object Sync {
                     out += Diff(Kind.FINISHED_IN_GRAPH, n.id, title, goal.id, name, "finished",
                         num(goal.doneUnits ?: 0.0) + " / " + num(goal.totalUnits), toChronos = true, toGraph = false, note = null)
             }
+        }
+        // One speed (8 Nov 2026): every goal counted in units is asked, whether a node works through it or not.
+        val nodeOf = mutableMapOf<String, Node>()
+        for ((nodeId, goals) in closedGoals(g, cfg, store.links())) g.node(nodeId)?.let { n -> goals.forEach { nodeOf.putIfAbsent(it.id, n) } }
+        for (goal in cfg.goals.filter { it.mode == Enums.GoalMode.CLOSED }) {
+            val n = nodeOf[goal.id]
+            val name = goal.name?.trim() ?: ""
+            val act = cfg.activities.firstOrNull { it.goalId == goal.id && it.name != null }?.name?.let { Requirements.norm(it) }
+            val bias = act?.let { g.params[Estimator.POST + "bias." + it] }
+            val hpu = goal.hoursPerUnit
+            // Finished work has no more hours to plan: its speed is not worth a question.
+            if (n != null && done(n)) continue
+            if (goal.remainingUnits() <= 1e-9 || bias == null || hpu == null || hpu <= 0 || (bias.get("n") ?: 0.0) < 3) continue
+            val learned = Math.round(hpu * (bias.get("median") ?: 1.0) * 20) / 20.0
+            if (learned <= 0 || abs(learned - hpu) / hpu <= 0.15) continue
+            val week = bias.get("slope")?.let { (exp(it * 7) - 1) * 100 }
+            out += Diff(Kind.HOURS_PER_UNIT, n?.id ?: "", n?.title ?: n?.id ?: name, goal.id, name, num(learned), num(hpu),
+                toChronos = true, toGraph = false, note = null, unit = goal.unit, trendPerWeek = week?.div(100))
         }
         // Standing hours (6 Nov 2026): an open goal's weekly hours follow the node worked through it, and a
         // node with a stretch of its own (a month of a language plan) speaks only during that stretch.
@@ -131,6 +136,7 @@ object Sync {
         val store = DatabaseWiring.navigator(context)
         val repo = DatabaseWiring.repository(context)
         val g = store.load() ?: return "No goal graph."
+        if (toChronos && d.kind == Kind.HOURS_PER_UNIT) return useSpeed(context, d)
         val n = g.node(d.nodeId) ?: return "The node is gone."
         if (toChronos) {
             val cfg = repo.loadConfig()
@@ -138,7 +144,7 @@ object Sync {
             when (d.kind) {
                 Kind.DEADLINE -> goal.deadline = n.deadline
                 Kind.UNITS -> goal.totalUnits = n.unitsTotal
-                Kind.HOURS_PER_UNIT -> goal.hoursPerUnit = d.graph.toDouble()
+                Kind.HOURS_PER_UNIT -> return useSpeed(context, d)
                 Kind.FINISHED_IN_GRAPH -> goal.doneUnits = goal.totalUnits
                 Kind.FINISHED_IN_CHRONOS -> return "Nothing to write into Chronos."
                 Kind.WEEKLY_HOURS -> {
@@ -167,6 +173,28 @@ object Sync {
             else -> return "Nothing to write into the graph."
         }
         return "Graph updated: ${n.id}."
+    }
+
+    /**
+     * The learned hours per unit become the goal's one speed (8 Nov 2026). The first time, the speed its
+     * activities' quality has gathered from overruns is taken out — set back to 1 — because the same
+     * slowness is now in the hours per unit; its uncertainty stays, so the margin does too. From then on a
+     * session logged with units speaks only through the hours per unit.
+     */
+    private fun useSpeed(context: Context, d: Diff): String {
+        val repo = DatabaseWiring.repository(context)
+        val cfg = repo.loadConfig()
+        val goal = cfg.goal(d.goalId) ?: return "The Chronos goal is gone."
+        goal.hoursPerUnit = d.graph.toDouble()
+        if (!goal.speedFromLog) {
+            goal.speedFromLog = true
+            cfg.activities.filter { it.goalId == goal.id }.forEach { it.q = 1.0 }
+        }
+        repo.saveConfig(cfg)
+        // The morning base would bring the old quality back with the next entry.
+        repo.dropLiveBase()
+        NavEngine.afterChronosChange(context, cfg)
+        return "Chronos updated: ${d.goalName}."
     }
 
     /** What a decision about a node's value replaces: carried over from an earlier one, so it always names the file's. */

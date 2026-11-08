@@ -202,6 +202,63 @@ private fun ForecastRow(nav: NavigatorViewModel, n: com.chronos.navigator.model.
     }
 }
 
+// ----------------------------------------------------------- how right it has been
+
+/**
+ * Each past week replayed with only what was logged before it (8 Nov 2026): what the model would have
+ * said beside what happened, and beside a plain guess that learns nothing.
+ */
+@Composable
+internal fun AccuracyPanel(nav: NavigatorViewModel) {
+    val lang = LocalLang.current
+    val weeks = nav.params.filter { it.key.startsWith("post.accuracy.") }
+        .sortedBy { it.key.removePrefix("post.accuracy.").toIntOrNull() ?: 99 }
+    var open by remember { mutableStateOf(false) }
+    Panel("How right the model has been", Palette.Ochre) {
+        if (weeks.isEmpty()) {
+            Hint("Needs a week of log to judge: each week is checked against what the model said before it began.")
+            return@Panel
+        }
+        fun score(err: Double) = "${Math.max(0, Math.round((1 - err) * 100))}%"
+        var h = 0.0; var hp = 0.0; var hw = 0.0; var sp = 0.0; var spp = 0.0; var sw = 0.0
+        weeks.forEach { w ->
+            val planned = w.get("planned_h") ?: 0.0
+            if (planned > 0) {
+                h += Math.abs((w.get("predicted_h") ?: 0.0) - (w.get("worked_h") ?: 0.0))
+                hp += Math.abs(planned - (w.get("worked_h") ?: 0.0))
+                hw += planned
+            }
+            w.get("speed_err")?.let { e ->
+                val u = w.get("units") ?: 0.0
+                sp += u * e; spp += u * (w.get("plain_speed_err") ?: e); sw += u
+            }
+        }
+        if (hw > 0) {
+            Text(tr("Hours you would work") + ": " + score(h / hw), style = MaterialTheme.typography.bodyMedium)
+            Hint(tr("Taking the plan at its word") + ": " + score(hp / hw) + ". " +
+                 tr(if (h < hp) "The learning helps here." else "No better than the plan yet: more days of log will tell."))
+        }
+        if (sw > 0) {
+            Text(tr("Time a unit takes") + ": " + score(sp / sw), style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 4.dp))
+            Hint(tr("Chronos's own hours per unit") + ": " + score(spp / sw) + ". " +
+                 tr(if (sp < spp) "The learning helps here." else "No better than the plain figure yet: more days of log will tell."))
+        }
+        Hint("100% is a week foreseen exactly. Each week is judged with only what was logged before it began.")
+        TextButton(onClick = { open = !open }) { Text(if (open) "Hide" else "Week by week") }
+        if (!open) return@Panel
+        weeks.forEach { w ->
+            val from = LocalDate.ofEpochDay((w.get("from") ?: 0.0).toLong())
+            val to = LocalDate.ofEpochDay((w.get("to") ?: 0.0).toLong())
+            fun h(k: String) = trimNumber(Math.round((w.get(k) ?: 0.0) * 10) / 10.0)
+            Hint(formatDate(lang, from) + " – " + formatDate(lang, to) + ":  " +
+                 tr("planned") + " " + h("planned_h") + " h · " + tr("foreseen") + " " + h("predicted_h") + " h · " +
+                 tr("worked") + " " + h("worked_h") + " h" +
+                 (w.get("speed_err")?.let { "  ·  " + tr("speed off by") + " " + Math.round(it * 100) + "%" } ?: ""))
+        }
+    }
+}
+
 // ----------------------------------------------------------- what was learned
 
 @Composable
