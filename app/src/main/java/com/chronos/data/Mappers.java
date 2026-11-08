@@ -226,10 +226,13 @@ public final class Mappers {
           .append(p.fSafe).append(p.idleRecovery).append(p.slackRatio)
           .append(p.lcbBeta).append(p.switchPenalty).append(p.fatiguePenalty).append(p.horizonDays)
           .append(p.aP).append(p.pTheta).append(p.fSafeP).append(p.idleRecoveryP).append(p.kMP);
-        for (GoalRow r : goalRows(c))
+        for (GoalRow r : goalRows(c)) {
             sb.append(r.id).append(r.mode).append(r.totalUnits).append(r.doneUnits)
               .append(r.hoursPerUnit).append(r.deadline).append(r.weeklyFloorH)
-              .append(r.maxPerDayH).append(r.weight).append(r.speedFromLog);
+              .append(r.maxPerDayH).append(r.weight);
+            // Only when set, so a plan built before v18 still matches its settings.
+            if (r.speedFromLog) sb.append("speedFromLog");
+        }
         for (ActivityRow r : activityRows(c))
             sb.append(r.id).append(r.kind).append(r.goalId).append(r.days).append(r.minBlock)
               .append(r.maxBlock).append(r.load).append(r.recovery).append(r.physLoad).append(r.physRecovery).append(r.q).append(r.qSigma)
