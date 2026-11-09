@@ -3822,4 +3822,20 @@ internal val Fa: Map<String, String> = mapOf(
         to "خطای سرعت",
     "It becomes the goal's one speed: a session logged with its units then changes only this number, not how well that activity's sessions are judged to go, so slowness is not counted twice."
         to "از این به بعد این تنها سرعت این هدف است: جلسه‌ای که با تعداد واحدهایش ثبت شود فقط همین عدد را تغییر می‌دهد، نه ارزیابی کیفیت جلسه‌های آن فعالیت را؛ پس کندی دو بار حساب نمی‌شود.",
+    "At most"
+        to "حداکثر",
+    "of goal work a day"
+        to "کار هدف در روز",
+    "Your good days of the last four weeks held"
+        to "روزهای خوبت در چهار هفتهٔ اخیر",
+    "logged days"
+        to "روز ثبت‌شده",
+    "the plan asks a tenth more, so it measures you and not an overfull plan."
+        to "برنامه یک‌دهم بیشتر می‌خواهد؛ پس پایبندی خودت را می‌سنجد، نه زیادیِ برنامه را.",
+    "off: goal work fills all the free time."
+        to "خاموش: کار هدف همهٔ وقت آزاد را پر می‌کند.",
+    "Goal work is planned up to what your good days held."
+        to "کار هدف تا حدِ روزهای خوبت برنامه‌ریزی می‌شود.",
+    "Goal work is planned in all the free time again."
+        to "کار هدف دوباره در همهٔ وقت آزاد برنامه‌ریزی می‌شود.",
 )
